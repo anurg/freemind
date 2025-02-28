@@ -1,0 +1,92 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String    @id @default(uuid())
+  username      String    @unique
+  email         String    @unique
+  password      String
+  role          Role      @default(USER)
+  isActive      Boolean   @default(true)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  assignedTasks Task[]    @relation("AssignedTo")
+  createdTasks  Task[]    @relation("CreatedBy")
+  comments      Comment[]
+  auditLogs     AuditLog[]
+}
+
+model Task {
+  id              String    @id @default(uuid())
+  title           String
+  description     String
+  category        String
+  status          TaskStatus @default(PENDING)
+  completionPercentage Int     @default(0)
+  dueDate         DateTime?
+  assignedToId    String?
+  assignedTo      User?     @relation("AssignedTo", fields: [assignedToId], references: [id])
+  createdById     String
+  createdBy       User      @relation("CreatedBy", fields: [createdById], references: [id])
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  comments        Comment[]
+  progressHistory ProgressHistory[]
+  auditLogs       AuditLog[]
+}
+
+model Comment {
+  id        String   @id @default(uuid())
+  content   String
+  taskId    String
+  task      Task     @relation(fields: [taskId], references: [id])
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model ProgressHistory {
+  id                   String   @id @default(uuid())
+  taskId               String
+  task                 Task     @relation(fields: [taskId], references: [id])
+  previousPercentage   Int
+  newPercentage        Int
+  comment              String?
+  createdAt            DateTime @default(now())
+}
+
+model AuditLog {
+  id        String    @id @default(uuid())
+  action    String
+  entity    String
+  entityId  String
+  userId    String
+  user      User      @relation(fields: [userId], references: [id])
+  details   String?
+  createdAt DateTime  @default(now())
+  taskId    String?
+  task      Task?     @relation(fields: [taskId], references: [id])
+}
+
+enum Role {
+  ADMIN
+  MANAGER
+  USER
+}
+
+enum TaskStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  DELAYED
+}
