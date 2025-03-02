@@ -55,11 +55,17 @@ export async function apiRequest(
   // Handle other error responses
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}));
-    throw new Error(errorData.message || 'Something went wrong');
+    console.error(`API Error (${response.status}):`, errorData);
+    throw new Error(errorData.message || `API Error: ${response.status} ${response.statusText}`);
   }
 
-  // Return JSON response or empty object if no content
-  return response.status !== 204 ? response.json() : {};
+  try {
+    // Return JSON response or empty object if no content
+    return response.status !== 204 ? await response.json() : {};
+  } catch (error) {
+    console.error('Error parsing API response:', error);
+    throw new Error('Failed to parse API response');
+  }
 }
 
 // Authentication functions
@@ -210,7 +216,17 @@ export async function createNotification(data: {
 
 // Insights API function
 export async function getInsights() {
-  return apiRequest('insights');
+  try {
+    return await apiRequest('insights');
+  } catch (error) {
+    console.error('Error in getInsights:', error);
+    throw error;
+  }
+}
+
+// User-specific insights API function
+export async function getUserInsights(userId: string) {
+  return apiRequest(`insights/user/${userId}`);
 }
 
 // Audit logs API function

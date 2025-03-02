@@ -87,6 +87,11 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
         icon: <List className="h-5 w-5" /> 
       },
       { 
+        path: '/insights', 
+        label: 'Insights', 
+        icon: <BarChart2 className="h-5 w-5" /> 
+      },
+      { 
         path: '/settings', 
         label: 'Settings', 
         icon: <Settings className="h-5 w-5" /> 
@@ -102,17 +107,6 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     ];
 
     const items = [...baseNavItems];
-
-    // Add admin/manager only items
-    if (user && (user.role === 'ADMIN' || user.role === 'MANAGER')) {
-      items.push(
-        { 
-          path: '/insights', 
-          label: 'Insights', 
-          icon: <BarChart2 className="h-5 w-5" /> 
-        }
-      );
-    }
 
     // Add admin only items
     if (user && user.role === 'ADMIN') {

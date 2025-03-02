@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import Layout from '../components/Layout';
 import withAuth from '../utils/withAuth';
-import { getCurrentUserProfile, updateUser } from '../utils/api';
-import { AlertTriangle, Save, User } from 'lucide-react';
+import { getCurrentUserProfile, updateUser, getUserInsights } from '../utils/api';
+import { AlertTriangle, Save, User, BarChart2, Activity, CheckCircle, Clock } from 'lucide-react';
 
 const ProfilePage = () => {
   const [user, setUser] = useState<any>(null);
@@ -10,6 +10,9 @@ const ProfilePage = () => {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState('profile');
+  const [insights, setInsights] = useState<any>(null);
+  const [insightsLoading, setInsightsLoading] = useState(false);
   const [formData, setFormData] = useState({
     username: '',
     email: '',
@@ -42,6 +45,28 @@ const ProfilePage = () => {
       setLoading(false);
     }
   };
+
+  // Fetch user insights
+  const fetchUserInsights = async () => {
+    if (!user) return;
+    
+    try {
+      setInsightsLoading(true);
+      const insightsData = await getUserInsights(user.id);
+      setInsights(insightsData);
+      setInsightsLoading(false);
+    } catch (err: any) {
+      console.error('Error fetching user insights:', err);
+      setInsightsLoading(false);
+    }
+  };
+
+  // Load insights when tab changes to insights
+  useEffect(() => {
+    if (activeTab === 'insights' && user && !insights) {
+      fetchUserInsights();
+    }
+  }, [activeTab, user]);
 
   // Handle form input changes
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -122,6 +147,7 @@ const ProfilePage = () => {
       <div className="max-w-3xl mx-auto space-y-6">
         <h1 className="text-2xl font-bold text-gray-900">My Profile</h1>
         
+        {/* User header */}
         <div className="bg-white shadow rounded-lg overflow-hidden">
           <div className="px-4 py-5 sm:px-6 border-b border-gray-200">
             <div className="flex items-center">
@@ -135,185 +161,289 @@ const ProfilePage = () => {
             </div>
           </div>
           
-          <form onSubmit={handleSubmit} className="px-4 py-5 sm:p-6">
-            {/* Success message */}
-            {success && (
-              <div className="mb-4 p-3 bg-green-50 border border-green-200 text-green-700 rounded-md">
-                {success}
-              </div>
-            )}
-            
-            {/* Error message */}
-            {error && (
-              <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 rounded-md flex items-start">
-                <AlertTriangle className="h-5 w-5 mr-2 mt-0.5 flex-shrink-0" />
-                <span>{error}</span>
-              </div>
-            )}
-            
-            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
-              {/* Username */}
-              <div>
-                <label htmlFor="username" className="block text-sm font-medium text-gray-700">
-                  Username
-                </label>
-                <div className="mt-1">
-                  <input
-                    type="text"
-                    name="username"
-                    id="username"
-                    value={formData.username}
-                    onChange={handleChange}
-                    className="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md"
-                    required
-                  />
-                </div>
-              </div>
-              
-              {/* Email */}
-              <div>
-                <label htmlFor="email" className="block text-sm font-medium text-gray-700">
-                  Email
-                </label>
-                <div className="mt-1">
-                  <input
-                    type="email"
-                    name="email"
-                    id="email"
-                    value={formData.email}
-                    onChange={handleChange}
-                    className="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md"
-                    required
-                  />
-                </div>
-              </div>
-              
-              {/* Current Password */}
-              <div className="sm:col-span-2">
-                <label htmlFor="currentPassword" className="block text-sm font-medium text-gray-700">
-                  Current Password
-                </label>
-                <div className="mt-1">
-                  <input
-                    type="password"
-                    name="currentPassword"
-                    id="currentPassword"
-                    value={formData.currentPassword}
-                    onChange={handleChange}
-                    className="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md"
-                  />
-                  <p className="mt-1 text-xs text-gray-500">
-                    Required only if you want to change your password
-                  </p>
-                </div>
-              </div>
-              
-              {/* New Password */}
-              <div>
-                <label htmlFor="newPassword" className="block text-sm font-medium text-gray-700">
-                  New Password
-                </label>
-                <div className="mt-1">
-                  <input
-                    type="password"
-                    name="newPassword"
-                    id="newPassword"
-                    value={formData.newPassword}
-                    onChange={handleChange}
-                    className="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md"
-                  />
-                </div>
-              </div>
-              
-              {/* Confirm Password */}
-              <div>
-                <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700">
-                  Confirm New Password
-                </label>
-                <div className="mt-1">
-                  <input
-                    type="password"
-                    name="confirmPassword"
-                    id="confirmPassword"
-                    value={formData.confirmPassword}
-                    onChange={handleChange}
-                    className="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md"
-                  />
-                </div>
-              </div>
-            </div>
-            
-            <div className="mt-6 flex justify-end">
+          {/* Tabs */}
+          <div className="border-b border-gray-200">
+            <nav className="-mb-px flex space-x-8 px-4">
               <button
-                type="submit"
-                disabled={saving}
-                className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
+                onClick={() => setActiveTab('profile')}
+                className={`${
+                  activeTab === 'profile'
+                    ? 'border-blue-500 text-blue-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm`}
               >
-                {saving ? (
-                  <>
-                    <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                    </svg>
-                    Saving...
-                  </>
-                ) : (
-                  <>
-                    <Save className="h-4 w-4 mr-2" />
-                    Save Changes
-                  </>
-                )}
+                Profile Settings
               </button>
-            </div>
-          </form>
+              
+              <button
+                onClick={() => setActiveTab('insights')}
+                className={`${
+                  activeTab === 'insights'
+                    ? 'border-blue-500 text-blue-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm flex items-center`}
+              >
+                <BarChart2 className="h-4 w-4 mr-2" />
+                My Insights
+              </button>
+            </nav>
+          </div>
           
-          <div className="px-4 py-3 bg-gray-50 text-right sm:px-6">
-            <div className="text-xs text-gray-500">
-              Account created on {user?.createdAt ? new Date(user.createdAt).toLocaleDateString() : 'N/A'}
+          {/* Tab Content */}
+          {activeTab === 'profile' && (
+            <form onSubmit={handleSubmit} className="px-4 py-5 sm:p-6">
+              {/* Success message */}
+              {success && (
+                <div className="mb-4 p-3 bg-green-50 border border-green-200 text-green-700 rounded-md">
+                  {success}
+                </div>
+              )}
+              
+              {/* Error message */}
+              {error && (
+                <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 rounded-md flex items-start">
+                  <AlertTriangle className="h-5 w-5 mr-2 mt-0.5 flex-shrink-0" />
+                  <span>{error}</span>
+                </div>
+              )}
+              
+              <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
+                {/* Username */}
+                <div>
+                  <label htmlFor="username" className="block text-sm font-medium text-gray-700">
+                    Username
+                  </label>
+                  <div className="mt-1">
+                    <input
+                      type="text"
+                      name="username"
+                      id="username"
+                      value={formData.username}
+                      onChange={handleChange}
+                      className="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md"
+                      required
+                    />
+                  </div>
+                </div>
+                
+                {/* Email */}
+                <div>
+                  <label htmlFor="email" className="block text-sm font-medium text-gray-700">
+                    Email
+                  </label>
+                  <div className="mt-1">
+                    <input
+                      type="email"
+                      name="email"
+                      id="email"
+                      value={formData.email}
+                      onChange={handleChange}
+                      className="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md"
+                      required
+                    />
+                  </div>
+                </div>
+                
+                {/* Current Password */}
+                <div className="sm:col-span-2">
+                  <label htmlFor="currentPassword" className="block text-sm font-medium text-gray-700">
+                    Current Password
+                  </label>
+                  <div className="mt-1">
+                    <input
+                      type="password"
+                      name="currentPassword"
+                      id="currentPassword"
+                      value={formData.currentPassword}
+                      onChange={handleChange}
+                      className="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md"
+                    />
+                    <p className="mt-1 text-xs text-gray-500">Required only if changing password</p>
+                  </div>
+                </div>
+                
+                {/* New Password */}
+                <div>
+                  <label htmlFor="newPassword" className="block text-sm font-medium text-gray-700">
+                    New Password
+                  </label>
+                  <div className="mt-1">
+                    <input
+                      type="password"
+                      name="newPassword"
+                      id="newPassword"
+                      value={formData.newPassword}
+                      onChange={handleChange}
+                      className="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md"
+                    />
+                  </div>
+                </div>
+                
+                {/* Confirm Password */}
+                <div>
+                  <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700">
+                    Confirm New Password
+                  </label>
+                  <div className="mt-1">
+                    <input
+                      type="password"
+                      name="confirmPassword"
+                      id="confirmPassword"
+                      value={formData.confirmPassword}
+                      onChange={handleChange}
+                      className="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md"
+                    />
+                  </div>
+                </div>
+              </div>
+              
+              <div className="mt-6 flex justify-end">
+                <button
+                  type="submit"
+                  disabled={saving}
+                  className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
+                >
+                  {saving ? (
+                    <>
+                      <div className="animate-spin mr-2 h-4 w-4 border-2 border-white border-t-transparent rounded-full"></div>
+                      Saving...
+                    </>
+                  ) : (
+                    <>
+                      <Save className="h-4 w-4 mr-2" />
+                      Save Changes
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
+          )}
+          
+          {activeTab === 'insights' && (
+            <div className="px-4 py-5 sm:p-6">
+              {insightsLoading ? (
+                <div className="flex justify-center py-8">
+                  <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+                </div>
+              ) : insights ? (
+                <div className="space-y-6">
+                  {/* Task Statistics */}
+                  <div>
+                    <h3 className="text-lg font-medium text-gray-900 mb-4">Task Statistics</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div className="bg-gray-50 p-4 rounded-lg">
+                        <div className="flex items-center">
+                          <div className="flex-shrink-0 bg-blue-100 rounded-md p-2">
+                            <Activity className="h-5 w-5 text-blue-600" />
+                          </div>
+                          <div className="ml-3">
+                            <p className="text-sm font-medium text-gray-500">Total Tasks</p>
+                            <p className="text-2xl font-semibold text-gray-900">{insights.taskStats.total}</p>
+                          </div>
+                        </div>
+                      </div>
+                      
+                      <div className="bg-gray-50 p-4 rounded-lg">
+                        <div className="flex items-center">
+                          <div className="flex-shrink-0 bg-green-100 rounded-md p-2">
+                            <CheckCircle className="h-5 w-5 text-green-600" />
+                          </div>
+                          <div className="ml-3">
+                            <p className="text-sm font-medium text-gray-500">Completed Tasks</p>
+                            <p className="text-2xl font-semibold text-gray-900">
+                              {insights.performance.totalCompletedTasks}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                      
+                      <div className="bg-gray-50 p-4 rounded-lg">
+                        <div className="flex items-center">
+                          <div className="flex-shrink-0 bg-purple-100 rounded-md p-2">
+                            <Clock className="h-5 w-5 text-purple-600" />
+                          </div>
+                          <div className="ml-3">
+                            <p className="text-sm font-medium text-gray-500">Avg. Completion Time</p>
+                            <p className="text-2xl font-semibold text-gray-900">
+                              {insights.performance.averageCompletionDays} days
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {/* Task Distribution */}
+                  <div>
+                    <h3 className="text-lg font-medium text-gray-900 mb-4">Task Distribution</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      {/* Status Distribution */}
+                      <div>
+                        <h4 className="text-sm font-medium text-gray-500 mb-2">By Status</h4>
+                        <div className="space-y-2">
+                          {insights.taskStats.byStatus.map((item: any) => (
+                            <div key={item.status}>
+                              <div className="flex justify-between text-sm">
+                                <span>{item.status.replace('_', ' ')}</span>
+                                <span>{item.percentage}%</span>
+                              </div>
+                              <div className="w-full bg-gray-200 rounded-full h-2">
+                                <div 
+                                  className={`h-2 rounded-full ${
+                                    item.status === 'COMPLETED' ? 'bg-green-500' :
+                                    item.status === 'IN_PROGRESS' ? 'bg-blue-500' :
+                                    item.status === 'DELAYED' ? 'bg-red-500' :
+                                    'bg-gray-500'
+                                  }`}
+                                  style={{ width: `${item.percentage}%` }}
+                                ></div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                      
+                      {/* Category Distribution */}
+                      <div>
+                        <h4 className="text-sm font-medium text-gray-500 mb-2">By Category</h4>
+                        <div className="space-y-2">
+                          {insights.taskStats.byCategory.map((item: any) => (
+                            <div key={item.category}>
+                              <div className="flex justify-between text-sm">
+                                <span>{item.category}</span>
+                                <span>{item.percentage}%</span>
+                              </div>
+                              <div className="w-full bg-gray-200 rounded-full h-2">
+                                <div 
+                                  className="bg-indigo-500 h-2 rounded-full"
+                                  style={{ width: `${item.percentage}%` }}
+                                ></div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {/* Recent Activity */}
+                  <div>
+                    <h3 className="text-lg font-medium text-gray-900 mb-4">Recent Activity</h3>
+                    <div>
+                      <h4 className="text-sm font-medium text-gray-500 mb-2">Completed Tasks (Last 30 Days)</h4>
+                      <p className="text-3xl font-semibold text-gray-900">
+                        {insights.performance.completedTasksLast30Days}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="text-center py-6 text-gray-500">
+                  No insights data available. This could be due to insufficient task data.
+                </div>
+              )}
             </div>
-          </div>
-        </div>
-        
-        <div className="bg-white shadow rounded-lg overflow-hidden">
-          <div className="px-4 py-5 sm:px-6 border-b border-gray-200">
-            <h3 className="text-lg font-medium text-gray-900">Account Information</h3>
-          </div>
-          <div className="px-4 py-5 sm:p-6">
-            <dl className="grid grid-cols-1 gap-x-4 gap-y-6 sm:grid-cols-2">
-              <div>
-                <dt className="text-sm font-medium text-gray-500">Role</dt>
-                <dd className="mt-1 text-sm text-gray-900">
-                  <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                    user?.role === 'ADMIN' ? 'bg-purple-100 text-purple-800' :
-                    user?.role === 'MANAGER' ? 'bg-blue-100 text-blue-800' :
-                    'bg-green-100 text-green-800'
-                  }`}>
-                    {user?.role}
-                  </span>
-                </dd>
-              </div>
-              <div>
-                <dt className="text-sm font-medium text-gray-500">Status</dt>
-                <dd className="mt-1 text-sm text-gray-900">
-                  <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                    user?.isActive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                  }`}>
-                    {user?.isActive ? 'Active' : 'Inactive'}
-                  </span>
-                </dd>
-              </div>
-              <div>
-                <dt className="text-sm font-medium text-gray-500">Last Login</dt>
-                <dd className="mt-1 text-sm text-gray-900">
-                  {user?.lastLogin ? new Date(user.lastLogin).toLocaleString() : 'Never'}
-                </dd>
-              </div>
-              <div>
-                <dt className="text-sm font-medium text-gray-500">Tasks Assigned</dt>
-                <dd className="mt-1 text-sm text-gray-900">{user?.tasksCount || 0}</dd>
-              </div>
-            </dl>
-          </div>
+          )}
         </div>
       </div>
     </Layout>

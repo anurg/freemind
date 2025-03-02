@@ -11,11 +11,6 @@ async function handler(req: AuthenticatedRequest, res: NextApiResponse) {
   }
 
   try {
-    // Only managers and admins can access insights
-    if (req.user?.role !== 'ADMIN' && req.user?.role !== 'MANAGER') {
-      return res.status(403).json({ message: 'Forbidden: Insufficient permissions' });
-    }
-
     // Get insights based on task data
     const insights = await generateInsights();
     
@@ -257,4 +252,4 @@ function generateRecommendations(data: {
 }
 
 // Export the handler with authentication middleware
-export default withAuth(handler, ['ADMIN', 'MANAGER']);
+export default withAuth(handler);

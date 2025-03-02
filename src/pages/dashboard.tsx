@@ -4,12 +4,11 @@ import Link from 'next/link';
 import Layout from '../components/Layout';
 import TaskTable from '../components/TaskTable';
 import withAuth from '../utils/withAuth';
-import { getTasks, getInsights, getCurrentUser } from '../utils/api';
+import { getTasks, getCurrentUser } from '../utils/api';
 import { 
   CheckCircle, 
   Clock, 
   AlertTriangle, 
-  BarChart2, 
   PlusCircle,
   List,
   Calendar,
@@ -18,9 +17,7 @@ import {
 
 const Dashboard = () => {
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState('tasks');
   const [tasks, setTasks] = useState([]);
-  const [insights, setInsights] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [user, setUser] = useState<any>(null);
@@ -72,17 +69,6 @@ const Dashboard = () => {
       const allTasksResponse = await getTasks({ limit: 1000 });
       console.log('All tasks loaded for stats:', allTasksResponse.tasks.length);
       calculateTaskStats(allTasksResponse.tasks);
-      
-      // Fetch insights if user is admin or manager
-      const currentUser = getCurrentUser();
-      if (currentUser && (currentUser.role === 'ADMIN' || currentUser.role === 'MANAGER')) {
-        try {
-          const insightsResponse = await getInsights();
-          setInsights(insightsResponse);
-        } catch (err) {
-          console.error('Error fetching insights:', err);
-        }
-      }
       
       setLoading(false);
     } catch (err) {
@@ -269,173 +255,23 @@ const Dashboard = () => {
           </div>
         </div>
 
-        {/* Tabs */}
-        <div className="border-b border-gray-200">
-          <nav className="-mb-px flex space-x-8">
-            <button
-              onClick={() => setActiveTab('tasks')}
-              className={`${
-                activeTab === 'tasks'
-                  ? 'border-blue-500 text-blue-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-              } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm`}
-            >
-              Recent Tasks
-            </button>
-            
-            {user && (user.role === 'ADMIN' || user.role === 'MANAGER') && (
-              <button
-                onClick={() => setActiveTab('insights')}
-                className={`${
-                  activeTab === 'insights'
-                    ? 'border-blue-500 text-blue-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm`}
-              >
-                Insights
-              </button>
+        {/* Recent Tasks */}
+        <div className="bg-white shadow rounded-lg overflow-hidden">
+          <div className="px-4 py-5 sm:px-6 flex justify-between items-center">
+            <h3 className="text-lg leading-6 font-medium text-gray-900">Recent Tasks</h3>
+            <Link href="/tasks" className="text-sm text-blue-600 hover:text-blue-800">
+              View All
+            </Link>
+          </div>
+          <div className="border-t border-gray-200">
+            {tasks.length > 0 ? (
+              <TaskTable tasks={tasks} />
+            ) : (
+              <div className="text-center py-6 text-gray-500">
+                No tasks found. Create your first task to get started.
+              </div>
             )}
-          </nav>
-        </div>
-
-        {/* Tab Content */}
-        <div>
-          {activeTab === 'tasks' && (
-            <div className="bg-white shadow rounded-lg overflow-hidden">
-              <div className="px-4 py-5 sm:px-6 flex justify-between items-center">
-                <h3 className="text-lg leading-6 font-medium text-gray-900">Recent Tasks</h3>
-                <Link href="/tasks" className="text-sm text-blue-600 hover:text-blue-800">
-                  View All
-                </Link>
-              </div>
-              <div className="border-t border-gray-200">
-                {tasks.length > 0 ? (
-                  <TaskTable tasks={tasks} />
-                ) : (
-                  <div className="text-center py-6 text-gray-500">
-                    No tasks found. Create your first task to get started.
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-
-          {activeTab === 'insights' && insights && (
-            <div className="space-y-6">
-              {/* Summary Cards */}
-              <div className="bg-white shadow rounded-lg overflow-hidden">
-                <div className="px-4 py-5 sm:p-6">
-                  <h3 className="text-lg leading-6 font-medium text-gray-900 mb-4">
-                    Task Distribution
-                  </h3>
-                  
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {/* Status Distribution */}
-                    <div>
-                      <h4 className="text-sm font-medium text-gray-500 mb-2">By Status</h4>
-                      <div className="space-y-2">
-                        {insights?.taskDistribution?.byStatus && insights.taskDistribution.byStatus.map((item: any) => (
-                          <div key={item.status}>
-                            <div className="flex justify-between text-sm">
-                              <span>{item.status.replace('_', ' ')}</span>
-                              <span>{item.percentage}%</span>
-                            </div>
-                            <div className="w-full bg-gray-200 rounded-full h-2">
-                              <div 
-                                className={`h-2 rounded-full ${
-                                  item.status === 'COMPLETED' ? 'bg-green-500' :
-                                  item.status === 'IN_PROGRESS' ? 'bg-blue-500' :
-                                  item.status === 'DELAYED' ? 'bg-red-500' :
-                                  'bg-gray-500'
-                                }`}
-                                style={{ width: `${item.percentage}%` }}
-                              ></div>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                    
-                    {/* Category Distribution */}
-                    <div>
-                      <h4 className="text-sm font-medium text-gray-500 mb-2">By Category</h4>
-                      <div className="space-y-2">
-                        {insights?.taskDistribution?.byCategory && insights.taskDistribution.byCategory.map((item: any) => (
-                          <div key={item.category}>
-                            <div className="flex justify-between text-sm">
-                              <span>{item.category}</span>
-                              <span>{item.percentage}%</span>
-                            </div>
-                            <div className="w-full bg-gray-200 rounded-full h-2">
-                              <div 
-                                className="bg-indigo-500 h-2 rounded-full"
-                                style={{ width: `${item.percentage}%` }}
-                              ></div>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-              
-              {/* Performance Insights */}
-              <div className="bg-white shadow rounded-lg overflow-hidden">
-                <div className="px-4 py-5 sm:p-6">
-                  <h3 className="text-lg leading-6 font-medium text-gray-900 mb-4">
-                    Performance Insights
-                  </h3>
-                  
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {/* Average Completion Time */}
-                    <div>
-                      <h4 className="text-sm font-medium text-gray-500 mb-2">Average Completion Time</h4>
-                      <p className="text-3xl font-semibold text-gray-900">
-                        {insights?.performance?.averageCompletionDays} days
-                      </p>
-                    </div>
-                    
-                    {/* Top Performers */}
-                    <div>
-                      <h4 className="text-sm font-medium text-gray-500 mb-2">Top Performers</h4>
-                      {insights?.performance?.topPerformers && insights.performance.topPerformers.map((performer: any) => (
-                        <div key={performer.userId} className="py-2 flex justify-between">
-                          <span>{performer.user.username}</span>
-                          <span className="font-medium">{performer.completedTasks} tasks</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              </div>
-              
-              {/* Recommendations */}
-              <div className="bg-white shadow rounded-lg overflow-hidden">
-                <div className="px-4 py-5 sm:p-6">
-                  <h3 className="text-lg leading-6 font-medium text-gray-900 mb-4">
-                    Recommendations
-                  </h3>
-                  
-                  <div className="space-y-4">
-                    {insights?.recommendations && insights.recommendations.map((rec: any, index: number) => (
-                      <div 
-                        key={index} 
-                        className={`p-4 rounded-lg ${
-                          rec.type === 'success' ? 'bg-green-50 text-green-700' :
-                          rec.type === 'warning' ? 'bg-yellow-50 text-yellow-700' :
-                          rec.type === 'danger' ? 'bg-red-50 text-red-700' :
-                          'bg-blue-50 text-blue-700'
-                        }`}
-                      >
-                        {rec.message}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
+          </div>
         </div>
       </div>
     </Layout>
