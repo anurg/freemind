@@ -7,7 +7,12 @@ interface Task {
   title: string;
   description?: string;
   status: string;
-  category: string;
+  categoryId?: string;
+  category_rel?: {
+    id: string;
+    name: string;
+    description?: string;
+  } | null;
   priority: string;
   completionPercentage: number;
   dueDate?: string;
@@ -49,17 +54,24 @@ const TaskTable: React.FC<TaskTableProps> = ({ tasks, loading }) => {
     }
     
     // Apply sorting
-    filtered.sort((a, b) => {
-      let aValue: any = a[sortField as keyof Task];
-      let bValue: any = b[sortField as keyof Task];
+    const sorted = filtered.sort((a, b) => {
+      let aValue, bValue;
       
-      // Handle nested properties
-      if (sortField === 'assignedTo') {
+      // Special handling for nested fields
+      if (sortField === 'category_rel') {
+        aValue = a.category_rel?.name || '';
+        bValue = b.category_rel?.name || '';
+      } else if (sortField === 'assignedTo') {
         aValue = a.assignedTo?.username || '';
         bValue = b.assignedTo?.username || '';
+      } else {
+        // @ts-ignore
+        aValue = a[sortField] || '';
+        // @ts-ignore
+        bValue = b[sortField] || '';
       }
       
-      // Handle date comparison
+      // Handle date fields
       if (sortField === 'dueDate' || sortField === 'createdAt' || sortField === 'updatedAt') {
         aValue = aValue ? new Date(aValue).getTime() : 0;
         bValue = bValue ? new Date(bValue).getTime() : 0;
@@ -76,14 +88,16 @@ const TaskTable: React.FC<TaskTableProps> = ({ tasks, loading }) => {
       return sortDirection === 'asc' ? aValue - bValue : bValue - aValue;
     });
     
-    setFilteredTasks(filtered);
+    setFilteredTasks(sorted);
   }, [tasks, searchTerm, sortField, sortDirection]);
 
   // Handle sort change
   const handleSort = (field: string) => {
     if (field === sortField) {
+      // Toggle sort direction if clicking the same field
       setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
     } else {
+      // Set new sort field and default to ascending
       setSortField(field);
       setSortDirection('asc');
     }
@@ -164,11 +178,11 @@ const TaskTable: React.FC<TaskTableProps> = ({ tasks, loading }) => {
                 </th>
                 <th 
                   className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
-                  onClick={() => handleSort('category')}
+                  onClick={() => handleSort('category_rel')}
                 >
                   <div className="flex items-center space-x-1">
                     <span>Category</span>
-                    {sortField === 'category' && (
+                    {sortField === 'category_rel' && (
                       sortDirection === 'asc' ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />
                     )}
                   </div>
@@ -219,7 +233,7 @@ const TaskTable: React.FC<TaskTableProps> = ({ tasks, loading }) => {
                 sortedTasks.map((task) => (
                   <tr key={task.id}>
                     <td className="px-6 py-4 whitespace-nowrap">{task.title}</td>
-                    <td className="px-6 py-4 whitespace-nowrap">{task.category}</td>
+                    <td className="px-6 py-4 whitespace-nowrap">{task.category_rel ? task.category_rel.name : 'Uncategorized'}</td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusColor(task.status)}`}>
                         {task.status.replace('_', ' ')}

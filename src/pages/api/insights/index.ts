@@ -11,8 +11,15 @@ async function handler(req: AuthenticatedRequest, res: NextApiResponse) {
   }
 
   try {
+    console.log('Generating insights data...');
+    
     // Get insights based on task data
     const insights = await generateInsights();
+    
+    console.log('Insights data generated successfully:', {
+      summaryKeys: insights.summary ? Object.keys(insights.summary) : 'No summary',
+      statisticsKeys: insights.statistics ? Object.keys(insights.statistics) : 'No statistics'
+    });
     
     return res.status(200).json(insights);
   } catch (error) {
@@ -36,7 +43,7 @@ async function generateInsights() {
   });
   
   const tasksByCategory = await prisma.task.groupBy({
-    by: ['category'],
+    by: ['categoryId'],
     _count: {
       id: true,
     },
@@ -74,6 +81,29 @@ async function generateInsights() {
       },
       status: {
         not: 'COMPLETED',
+      },
+    },
+  });
+
+  // Get tasks created this month
+  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+  const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+  
+  const tasksThisMonth = await prisma.task.count({
+    where: {
+      createdAt: {
+        gte: startOfMonth,
+        lte: endOfMonth,
+      },
+    },
+  });
+  
+  const completedTasksThisMonth = await prisma.task.count({
+    where: {
+      status: 'COMPLETED',
+      createdAt: {
+        gte: startOfMonth,
+        lte: endOfMonth,
       },
     },
   });
@@ -143,25 +173,36 @@ async function generateInsights() {
     })
   );
 
+  // Get category names for the statistics
+  const categories = await prisma.category.findMany();
+  const categoryMap = categories.reduce((map, cat) => {
+    map[cat.id] = cat.name;
+    return map;
+  }, {} as Record<string, string>);
+
   // Generate AI-like insights
   const insights = {
     summary: {
       totalTasks,
       completedTasks: tasksByStatus.find(t => t.status === 'COMPLETED')?._count.id || 0,
-      inProgressTasks: tasksByStatus.find(t => t.status === 'IN_PROGRESS')?._count.id || 0,
       pendingTasks: tasksByStatus.find(t => t.status === 'PENDING')?._count.id || 0,
+      inProgressTasks: tasksByStatus.find(t => t.status === 'IN_PROGRESS')?._count.id || 0,
       delayedTasks,
-      tasksDueSoon,
       overdueTasks,
+      tasksDueSoon,
+      averageCompletionDays,
+      tasksThisMonth,
+      completedTasksThisMonth,
     },
-    taskDistribution: {
+    statistics: {
       byStatus: tasksByStatus.map(item => ({
         status: item.status,
         count: item._count.id,
         percentage: Math.round((item._count.id / totalTasks) * 100),
       })),
       byCategory: tasksByCategory.map(item => ({
-        category: item.category,
+        categoryId: item.categoryId,
+        categoryName: item.categoryId ? categoryMap[item.categoryId] || 'Uncategorized' : 'Uncategorized',
         count: item._count.id,
         percentage: Math.round((item._count.id / totalTasks) * 100),
       })),

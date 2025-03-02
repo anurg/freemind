@@ -24,7 +24,7 @@ async function getTasks(req: AuthenticatedRequest, res: NextApiResponse) {
   try {
     const { 
       status, 
-      category, 
+      categoryId, 
       assignedToId, 
       createdById,
       search,
@@ -43,7 +43,8 @@ async function getTasks(req: AuthenticatedRequest, res: NextApiResponse) {
     const where: any = {};
     
     if (status) where.status = status;
-    if (category) where.category = category;
+    if (categoryId) where.categoryId = categoryId;
+    
     if (assignedToId) where.assignedToId = assignedToId;
     
     // For regular users, only show tasks they created or are assigned to
@@ -87,6 +88,7 @@ async function getTasks(req: AuthenticatedRequest, res: NextApiResponse) {
             email: true,
           },
         },
+        category_rel: true,
       },
       orderBy: {
         [sortBy as string]: sortOrder,
@@ -119,19 +121,40 @@ async function createTask(req: AuthenticatedRequest, res: NextApiResponse) {
     const { 
       title, 
       description, 
-      category, 
-      status = 'PENDING',
-      completionPercentage = 0,
+      categoryId, 
+      status = 'PENDING', 
+      completionPercentage = 0, 
       dueDate,
       assignedToId 
     } = req.body;
 
-    console.log('Creating task with data:', req.body);
-    console.log('User from token:', req.user);
+    console.log('Creating task with data:', {
+      title,
+      description,
+      categoryId,
+      status,
+      completionPercentage,
+      dueDate,
+      assignedToId,
+      createdById: req.user.id
+    });
 
-    // Validate input
-    if (!title || !description || !category) {
-      return res.status(400).json({ message: 'Title, description, and category are required' });
+    // Validate required fields
+    if (!title) {
+      return res.status(400).json({ message: 'Title is required' });
+    }
+
+    // Validate category if provided
+    if (categoryId) {
+      const category = await prisma.category.findUnique({
+        where: { id: categoryId },
+      });
+      
+      if (!category) {
+        return res.status(400).json({ message: 'Category not found' });
+      }
+      
+      console.log('Found category:', category);
     }
 
     // Validate completion percentage
@@ -160,7 +183,7 @@ async function createTask(req: AuthenticatedRequest, res: NextApiResponse) {
       data: {
         title,
         description,
-        category,
+        categoryId: categoryId || null, // Ensure categoryId is properly set
         status: status as 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'DELAYED',
         completionPercentage,
         dueDate: dueDate ? new Date(dueDate) : null,
@@ -183,10 +206,16 @@ async function createTask(req: AuthenticatedRequest, res: NextApiResponse) {
             email: true,
           },
         },
+        category_rel: true,
       },
     });
 
-    console.log('Task created successfully:', newTask.id);
+    console.log('Task created successfully with data:', {
+      id: newTask.id,
+      title: newTask.title,
+      categoryId: newTask.categoryId,
+      category: newTask.category_rel ? newTask.category_rel.name : 'None'
+    });
 
     // Create initial progress history entry
     await prisma.progressHistory.create({

@@ -11,16 +11,20 @@ async function handler(req: AuthenticatedRequest, res: NextApiResponse) {
   }
 
   try {
+    console.log('Marking all notifications as read for user:', req.user?.id);
+    
     // Mark all notifications as read for the current user
     const result = await prisma.notification.updateMany({
       where: {
-        userId: req.user?.userId,
+        userId: req.user?.id,
         isRead: false,
       },
       data: {
         isRead: true,
       },
     });
+
+    console.log(`Marked ${result.count} notifications as read`);
 
     return res.status(200).json({ 
       message: 'All notifications marked as read',

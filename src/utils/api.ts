@@ -37,9 +37,14 @@ export async function apiRequest(
     ...options,
   };
 
-  if (data) {
+  if (data && method !== 'GET' && method !== 'DELETE') {
     config.body = JSON.stringify(data);
   }
+
+  console.log(`API Request: ${method} ${endpoint}`, { 
+    headers: { ...headers, Authorization: token ? 'Bearer [REDACTED]' : undefined },
+    config: { ...config, body: config.body ? '[REDACTED]' : undefined }
+  });
 
   const response = await fetch(`/api/${endpoint}`, config);
 
@@ -49,22 +54,33 @@ export async function apiRequest(
     localStorage.removeItem('token');
     localStorage.removeItem('user');
     Router.push('/login');
-    throw new Error('Session expired. Please log in again.');
+    throw new Error('Unauthorized: Please log in again');
   }
 
-  // Handle other error responses
+  // For non-2xx responses, throw an error
   if (!response.ok) {
-    const errorData = await response.json().catch(() => ({}));
-    console.error(`API Error (${response.status}):`, errorData);
-    throw new Error(errorData.message || `API Error: ${response.status} ${response.statusText}`);
+    let errorMessage = `API Error: ${response.status} ${response.statusText}`;
+    try {
+      const errorData = await response.json();
+      console.error('API Error Response:', errorData);
+      errorMessage = errorData.message || errorMessage;
+    } catch (e) {
+      // If we can't parse the error response as JSON, just use the status text
+    }
+    throw new Error(errorMessage);
   }
 
+  // For 204 No Content responses, return null
+  if (response.status === 204) {
+    return null;
+  }
+
+  // For all other responses, try to parse as JSON
   try {
-    // Return JSON response or empty object if no content
-    return response.status !== 204 ? await response.json() : {};
+    return await response.json();
   } catch (error) {
-    console.error('Error parsing API response:', error);
-    throw new Error('Failed to parse API response');
+    console.warn('Response is not valid JSON:', error);
+    return null;
   }
 }
 
@@ -129,10 +145,12 @@ export async function getTask(id: string) {
 }
 
 export async function createTask(data: any) {
+  console.log('Creating task with data:', data);
   return apiRequest('tasks', 'POST', data);
 }
 
 export async function updateTask(id: string, data: any) {
+  console.log('Updating task with id:', id, 'and data:', data);
   return apiRequest(`tasks/${id}`, 'PUT', data);
 }
 
@@ -200,7 +218,15 @@ export async function markAllNotificationsAsRead() {
 }
 
 export async function deleteNotification(id: string) {
-  return apiRequest(`notifications/${id}`, 'DELETE');
+  console.log('API client: Deleting notification with ID:', id);
+  try {
+    const result = await apiRequest(`notifications/${id}`, 'DELETE');
+    console.log('API client: Notification deleted successfully');
+    return result;
+  } catch (error) {
+    console.error('API client: Error deleting notification:', error);
+    throw error;
+  }
 }
 
 export async function createNotification(data: {
@@ -240,4 +266,25 @@ export async function getAuditLogs(filters: Record<string, any> = {}) {
   
   const queryString = queryParams.toString();
   return apiRequest(`audit-logs${queryString ? `?${queryString}` : ''}`);
+}
+
+// Category API functions
+export async function getCategories() {
+  return apiRequest('categories');
+}
+
+export async function getCategory(id: string) {
+  return apiRequest(`categories/${id}`);
+}
+
+export async function createCategory(data: { name: string; description?: string }) {
+  return apiRequest('categories', 'POST', data);
+}
+
+export async function updateCategory(id: string, data: { name: string; description?: string }) {
+  return apiRequest(`categories/${id}`, 'PUT', data);
+}
+
+export async function deleteCategory(id: string) {
+  return apiRequest(`categories/${id}`, 'DELETE');
 }

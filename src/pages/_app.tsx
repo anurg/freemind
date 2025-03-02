@@ -3,6 +3,7 @@ import type { AppProps } from 'next/app';
 import Head from 'next/head';
 import { useEffect } from 'react';
 import { setupScheduledJobs } from '../utils/scheduledJobs';
+import { ensureCategoriesExist } from '../utils/categoryUtils';
 
 function MyApp({ Component, pageProps }: AppProps) {
   // Set up scheduled jobs when the app starts on the client side
@@ -13,6 +14,10 @@ function MyApp({ Component, pageProps }: AppProps) {
       const token = localStorage.getItem('token');
       if (token) {
         setupScheduledJobs();
+        
+        // This will run on the server side when API routes are called
+        // but we include it here to make sure it runs at least once
+        ensureCategoriesExist().catch(console.error);
       }
     }
   }, []);

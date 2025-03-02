@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import { Calendar, Clock, Tag, User, AlertTriangle } from 'lucide-react';
-import { getUsers, createTask, updateTask, getTask } from '../utils/api';
+import { getUsers, createTask, updateTask, getTask, getCategories } from '../utils/api';
 
 interface TaskFormProps {
   taskId?: string;
@@ -13,10 +13,11 @@ const TaskForm: React.FC<TaskFormProps> = ({ taskId, onSuccess }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [users, setUsers] = useState<any[]>([]);
+  const [categories, setCategories] = useState<any[]>([]);
   const [formData, setFormData] = useState({
     title: '',
     description: '',
-    category: '',
+    categoryId: '',
     priority: 'MEDIUM',
     status: 'PENDING',
     assignedToId: '',
@@ -34,13 +35,17 @@ const TaskForm: React.FC<TaskFormProps> = ({ taskId, onSuccess }) => {
         const usersData = await getUsers();
         setUsers(usersData.users);
         
+        // Fetch categories for dropdown
+        const categoriesData = await getCategories();
+        setCategories(categoriesData);
+        
         // If taskId is provided, fetch task data for editing
         if (taskId) {
           const taskData = await getTask(taskId);
           setFormData({
             title: taskData.title,
             description: taskData.description || '',
-            category: taskData.category || '',
+            categoryId: taskData.categoryId || '',
             priority: taskData.priority || 'MEDIUM',
             status: taskData.status || 'PENDING',
             assignedToId: taskData.assignedTo?.id || '',
@@ -99,8 +104,12 @@ const TaskForm: React.FC<TaskFormProps> = ({ taskId, onSuccess }) => {
         ...formData,
         // If assignedToId is empty string, set it to null to avoid foreign key constraint violation
         assignedToId: formData.assignedToId || null,
+        // If categoryId is empty string, set it to null
+        categoryId: formData.categoryId || null,
         completionPercentage: Number(formData.completionPercentage)
       };
+      
+      console.log('Submitting task with data:', taskData);
       
       // Create or update task
       if (taskId) {
@@ -189,19 +198,25 @@ const TaskForm: React.FC<TaskFormProps> = ({ taskId, onSuccess }) => {
           
           {/* Category */}
           <div>
-            <label htmlFor="category" className="block text-sm font-medium text-gray-700 flex items-center">
+            <label htmlFor="categoryId" className="block text-sm font-medium text-gray-700 flex items-center">
               <Tag className="h-4 w-4 mr-1" />
               Category
             </label>
             <div className="mt-1">
-              <input
-                type="text"
-                name="category"
-                id="category"
-                value={formData.category}
+              <select
+                id="categoryId"
+                name="categoryId"
+                value={formData.categoryId}
                 onChange={handleChange}
                 className="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md"
-              />
+              >
+                <option value="">Select a category</option>
+                {categories && categories.map((category) => (
+                  <option key={category.id} value={category.id}>
+                    {category.name}
+                  </option>
+                ))}
+              </select>
             </div>
           </div>
           

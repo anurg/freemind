@@ -13,10 +13,16 @@ import {
   Trash2,
   AlertOctagon
 } from 'lucide-react';
+import { getCategories } from '../utils/api';
 
 type TaskWithRelations = Task & {
   assignedTo: User | null;
   createdBy: User;
+  category_rel?: {
+    id: string;
+    name: string;
+    description?: string;
+  } | null;
   comments: (Comment & {
     user: {
       id: string;
@@ -49,17 +55,50 @@ const TaskDetail: React.FC<TaskDetailProps> = ({
   onClose 
 }) => {
   const [comment, setComment] = useState('');
-  const [progress, setProgress] = useState(task.completionPercentage);
   const [isEditing, setIsEditing] = useState(false);
+  const [progress, setProgress] = useState(task.completionPercentage);
   const [showExpediteForm, setShowExpediteForm] = useState(false);
   const [expediteMessage, setExpediteMessage] = useState('');
+  const [categories, setCategories] = useState<any[]>([]);
   const [editData, setEditData] = useState({
     title: task.title,
     description: task.description,
-    category: task.category,
+    categoryId: task.categoryId || '',
     status: task.status,
     dueDate: task.dueDate ? new Date(task.dueDate).toISOString().split('T')[0] : '',
+    assignedToId: task.assignedTo?.id || '',
   });
+
+  // Initialize edit form data
+  useEffect(() => {
+    console.log('Task data for editing:', {
+      id: task.id,
+      title: task.title,
+      categoryId: task.categoryId,
+      category: task.category_rel ? task.category_rel.name : 'None'
+    });
+    
+    setEditData({
+      title: task.title,
+      description: task.description,
+      categoryId: task.categoryId || '',
+      status: task.status,
+      dueDate: task.dueDate ? new Date(task.dueDate).toISOString().split('T')[0] : '',
+      assignedToId: task.assignedTo?.id || '',
+    });
+    
+    // Fetch categories
+    const fetchCategories = async () => {
+      try {
+        const categoriesData = await getCategories();
+        setCategories(categoriesData);
+      } catch (error) {
+        console.error('Error fetching categories:', error);
+      }
+    };
+    
+    fetchCategories();
+  }, [task]);
 
   // Format date for display
   const formatDate = (date: Date | null) => {
@@ -202,16 +241,16 @@ const TaskDetail: React.FC<TaskDetailProps> = ({
             <div>
               <label className="block text-sm font-medium text-gray-700">Category</label>
               <select
-                value={editData.category}
-                onChange={(e) => setEditData({ ...editData, category: e.target.value })}
+                value={editData.categoryId}
+                onChange={(e) => setEditData({ ...editData, categoryId: e.target.value })}
                 className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
               >
-                <option value="DEVELOPMENT">Development</option>
-                <option value="DESIGN">Design</option>
-                <option value="RESEARCH">Research</option>
-                <option value="MARKETING">Marketing</option>
-                <option value="OPERATIONS">Operations</option>
-                <option value="OTHER">Other</option>
+                <option value="">Select Category</option>
+                {categories.map((category) => (
+                  <option key={category.id} value={category.id}>
+                    {category.name}
+                  </option>
+                ))}
               </select>
             </div>
             
@@ -286,7 +325,7 @@ const TaskDetail: React.FC<TaskDetailProps> = ({
                   {task.status.replace('_', ' ')}
                 </span>
                 <span className="ml-4 text-gray-700">
-                  Category: {task.category}
+                  Category: {task.category_rel ? task.category_rel.name : 'Uncategorized'}
                 </span>
               </div>
             </div>

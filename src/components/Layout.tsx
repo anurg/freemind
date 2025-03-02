@@ -12,7 +12,8 @@ import {
   BarChart2, 
   Settings,
   List,
-  Server
+  Server,
+  Tag
 } from 'lucide-react';
 import { logout, getCurrentUser, getNotifications } from '../utils/api';
 import Notifications from './Notifications';
@@ -85,6 +86,11 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
         path: '/tasks', 
         label: 'Tasks', 
         icon: <List className="h-5 w-5" /> 
+      },
+      { 
+        path: '/categories', 
+        label: 'Categories', 
+        icon: <Tag className="h-5 w-5" /> 
       },
       { 
         path: '/insights', 

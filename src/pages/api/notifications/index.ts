@@ -35,7 +35,7 @@ async function getNotifications(req: AuthenticatedRequest, res: NextApiResponse)
 
     // Build filter conditions
     const where: any = {
-      userId: req.user?.userId,
+      userId: req.user?.id,
     };
     
     if (showUnreadOnly) {

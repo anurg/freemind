@@ -1,8 +1,12 @@
 import { NextApiRequest, NextApiResponse } from 'next';
 import jwt from 'jsonwebtoken';
 import { PrismaClient } from '@prisma/client';
+import { ensureCategoriesExist } from './categoryUtils';
 
 const prisma = new PrismaClient();
+
+// Ensure categories exist when the server starts
+ensureCategoriesExist().catch(console.error);
 
 export interface AuthenticatedRequest extends NextApiRequest {
   user?: any;

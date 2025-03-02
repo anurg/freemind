@@ -51,6 +51,7 @@ async function getTask(req: AuthenticatedRequest, res: NextApiResponse, id: stri
             email: true,
           },
         },
+        category_rel: true,
         comments: {
           include: {
             user: {
@@ -101,6 +102,7 @@ async function updateTask(req: AuthenticatedRequest, res: NextApiResponse, id: s
       include: {
         assignedTo: true,
         createdBy: true,
+        category_rel: true,
       }
     });
 
@@ -118,7 +120,7 @@ async function updateTask(req: AuthenticatedRequest, res: NextApiResponse, id: s
     const { 
       title, 
       description, 
-      category, 
+      categoryId, 
       status,
       completionPercentage,
       dueDate,
@@ -131,7 +133,21 @@ async function updateTask(req: AuthenticatedRequest, res: NextApiResponse, id: s
     
     if (title) updateData.title = title;
     if (description) updateData.description = description;
-    if (category) updateData.category = category;
+    if (categoryId !== undefined) {
+      // If categoryId is provided, check if it exists
+      if (categoryId) {
+        const category = await prisma.category.findUnique({
+          where: { id: categoryId },
+        });
+
+        if (!category) {
+          return res.status(400).json({ message: 'Category not found' });
+        }
+        updateData.categoryId = categoryId;
+      } else {
+        updateData.categoryId = null;
+      }
+    }
     if (status) updateData.status = status;
     if (dueDate !== undefined) updateData.dueDate = dueDate ? new Date(dueDate) : null;
     if (assignedToId !== undefined) updateData.assignedToId = assignedToId || null;
@@ -140,7 +156,7 @@ async function updateTask(req: AuthenticatedRequest, res: NextApiResponse, id: s
     const notificationTasks: Promise<any>[] = [];
 
     // Handle task assignment notification
-    if (assignedToId && assignedToId !== existingTask.assignedToId) {
+    if (assignedToId && assignedToId !== existingTask.assignedToId && assignedToId !== req.user.id) {
       notificationTasks.push(
         createTaskAssignmentNotification(
           id,
@@ -294,6 +310,7 @@ async function updateTask(req: AuthenticatedRequest, res: NextApiResponse, id: s
             email: true,
           },
         },
+        category_rel: true,
       },
     });
 

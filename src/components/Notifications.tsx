@@ -9,6 +9,7 @@ import {
   CheckSquare,
   X
 } from 'lucide-react';
+import { deleteNotification as apiDeleteNotification } from '../utils/api';
 
 interface Notification {
   id: string;
@@ -110,21 +111,15 @@ const Notifications: React.FC<NotificationsProps> = ({ onViewTask, onClose }) =>
   // Delete notification
   const deleteNotification = async (id: string) => {
     try {
-      const response = await fetch(`/api/notifications/${id}`, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
-        },
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to delete notification');
-      }
-
+      console.log('Deleting notification with ID:', id);
+      
+      await apiDeleteNotification(id);
+      console.log('Notification deleted successfully');
+      
       // Update local state
       setNotifications(notifications.filter(notification => notification.id !== id));
     } catch (err) {
-      console.error(err);
+      console.error('Error in deleteNotification:', err);
     }
   };
 
@@ -273,9 +268,12 @@ const Notifications: React.FC<NotificationsProps> = ({ onViewTask, onClose }) =>
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
+                      e.preventDefault();
+                      console.log('Delete button clicked for notification:', notification.id);
                       deleteNotification(notification.id);
                     }}
                     className="text-xs text-red-600 hover:text-red-800 flex items-center"
+                    aria-label="Delete notification"
                   >
                     <Trash2 className="h-3 w-3 mr-1" />
                     Delete

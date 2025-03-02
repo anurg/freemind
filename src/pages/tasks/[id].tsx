@@ -141,6 +141,12 @@ const TaskDetailPage = () => {
     );
   };
 
+  // Check if user can delete the task (admin only)
+  const canDeleteTask = () => {
+    if (!currentUser || !task) return false;
+    return currentUser.role === 'ADMIN';
+  };
+
   if (loading && !task) {
     return (
       <Layout>
@@ -188,7 +194,7 @@ const TaskDetailPage = () => {
             </h1>
           </div>
           
-          {!editMode && (
+          {!editMode && canManageTask() && (
             <div className="flex space-x-2">
               <button
                 onClick={toggleEditMode}
@@ -215,13 +221,15 @@ const TaskDetailPage = () => {
                   </button>
                 </div>
               ) : (
-                <button
-                  onClick={() => setDeleteConfirm(true)}
-                  className="inline-flex items-center px-3 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-red-600 hover:bg-red-700"
-                >
-                  <Trash2 className="h-4 w-4 mr-2" />
-                  Delete
-                </button>
+                canDeleteTask() && (
+                  <button
+                    onClick={() => setDeleteConfirm(true)}
+                    className="inline-flex items-center px-3 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-red-600 hover:bg-red-700"
+                  >
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    Delete
+                  </button>
+                )
               )}
             </div>
           )}
