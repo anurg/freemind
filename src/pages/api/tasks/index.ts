@@ -1,6 +1,7 @@
 import type { NextApiResponse } from 'next';
 import { PrismaClient } from '@prisma/client';
 import { withAuth, AuthenticatedRequest } from '../../../utils/authMiddleware';
+import { createTaskAssignmentNotification } from '../../../utils/notificationUtils';
 
 const prisma = new PrismaClient();
 
@@ -208,6 +209,16 @@ async function createTask(req: AuthenticatedRequest, res: NextApiResponse) {
         details: `Task "${newTask.title}" created by ${req.user.email}`,
       },
     });
+
+    // Send notification to assigned user if task is assigned
+    if (assignedToId && assignedToId !== req.user.userId) {
+      await createTaskAssignmentNotification(
+        newTask.id,
+        title,
+        assignedToId,
+        req.user.userId
+      );
+    }
 
     return res.status(201).json(newTask);
   } catch (error) {

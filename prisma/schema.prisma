@@ -23,6 +23,7 @@ model User {
   createdTasks  Task[]    @relation("CreatedBy")
   comments      Comment[]
   auditLogs     AuditLog[]
+  notifications Notification[]
 }
 
 model Task {
@@ -42,6 +43,7 @@ model Task {
   comments        Comment[]
   progressHistory ProgressHistory[]
   auditLogs       AuditLog[]
+  notifications   Notification[]
 }
 
 model Comment {
@@ -78,6 +80,20 @@ model AuditLog {
   task      Task?     @relation(fields: [taskId], references: [id])
 }
 
+model Notification {
+  id        String       @id @default(uuid())
+  title     String
+  message   String
+  type      NotificationType @default(INFO)
+  isRead    Boolean      @default(false)
+  userId    String
+  user      User         @relation(fields: [userId], references: [id])
+  taskId    String?
+  task      Task?        @relation(fields: [taskId], references: [id])
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+}
+
 enum Role {
   ADMIN
   MANAGER
@@ -89,4 +105,11 @@ enum TaskStatus {
   IN_PROGRESS
   COMPLETED
   DELAYED
+}
+
+enum NotificationType {
+  INFO
+  WARNING
+  ERROR
+  SUCCESS
 }

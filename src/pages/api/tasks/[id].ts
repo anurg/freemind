@@ -1,6 +1,12 @@
 import type { NextApiResponse } from 'next';
 import { PrismaClient } from '@prisma/client';
 import { withAuth, AuthenticatedRequest } from '../../../utils/authMiddleware';
+import {
+  createTaskAssignmentNotification,
+  createTaskStatusChangeNotification,
+  createCommentNotification,
+  createProgressUpdateNotification
+} from '../../../utils/notificationUtils';
 
 const prisma = new PrismaClient();
 
@@ -92,6 +98,10 @@ async function updateTask(req: AuthenticatedRequest, res: NextApiResponse, id: s
     // Check if task exists
     const existingTask = await prisma.task.findUnique({
       where: { id },
+      include: {
+        assignedTo: true,
+        createdBy: true,
+      }
     });
 
     if (!existingTask) {
@@ -126,6 +136,50 @@ async function updateTask(req: AuthenticatedRequest, res: NextApiResponse, id: s
     if (dueDate !== undefined) updateData.dueDate = dueDate ? new Date(dueDate) : null;
     if (assignedToId !== undefined) updateData.assignedToId = assignedToId || null;
 
+    // Track notification tasks
+    const notificationTasks: Promise<any>[] = [];
+
+    // Handle task assignment notification
+    if (assignedToId && assignedToId !== existingTask.assignedToId) {
+      notificationTasks.push(
+        createTaskAssignmentNotification(
+          id,
+          existingTask.title,
+          assignedToId,
+          req.user?.userId || ''
+        )
+      );
+    }
+
+    // Handle status change notification
+    if (status && status !== existingTask.status) {
+      // Notify task creator if they're not the one updating the status
+      if (existingTask.createdById !== req.user?.userId) {
+        notificationTasks.push(
+          createTaskStatusChangeNotification(
+            id,
+            existingTask.title,
+            status,
+            existingTask.createdById,
+            req.user?.userId || ''
+          )
+        );
+      }
+
+      // Notify assignee if they're not the one updating the status
+      if (existingTask.assignedToId && existingTask.assignedToId !== req.user?.userId) {
+        notificationTasks.push(
+          createTaskStatusChangeNotification(
+            id,
+            existingTask.title,
+            status,
+            existingTask.assignedToId,
+            req.user?.userId || ''
+          )
+        );
+      }
+    }
+
     // Handle completion percentage update and progress history
     if (completionPercentage !== undefined) {
       // Validate completion percentage
@@ -153,18 +207,72 @@ async function updateTask(req: AuthenticatedRequest, res: NextApiResponse, id: s
         } else if (completionPercentage > 0 && completionPercentage < 100 && existingTask.status === 'PENDING') {
           updateData.status = 'IN_PROGRESS';
         }
+
+        // Notify task creator if they're not the one updating the progress
+        if (existingTask.createdById !== req.user?.userId) {
+          notificationTasks.push(
+            createProgressUpdateNotification(
+              id,
+              existingTask.title,
+              existingTask.completionPercentage,
+              completionPercentage,
+              req.user?.userId || '',
+              existingTask.createdById
+            )
+          );
+        }
+
+        // Notify assignee if they're not the one updating the progress
+        if (existingTask.assignedToId && existingTask.assignedToId !== req.user?.userId) {
+          notificationTasks.push(
+            createProgressUpdateNotification(
+              id,
+              existingTask.title,
+              existingTask.completionPercentage,
+              completionPercentage,
+              req.user?.userId || '',
+              existingTask.assignedToId
+            )
+          );
+        }
       }
     }
 
     // Add comment if provided
     if (comment) {
-      await prisma.comment.create({
+      const newComment = await prisma.comment.create({
         data: {
           content: comment,
           taskId: id,
           userId: req.user?.userId || '',
         },
       });
+
+      // Notify task creator if they're not the one commenting
+      if (existingTask.createdById !== req.user?.userId) {
+        notificationTasks.push(
+          createCommentNotification(
+            id,
+            existingTask.title,
+            comment,
+            req.user?.userId || '',
+            existingTask.createdById
+          )
+        );
+      }
+
+      // Notify assignee if they're not the one commenting
+      if (existingTask.assignedToId && existingTask.assignedToId !== req.user?.userId) {
+        notificationTasks.push(
+          createCommentNotification(
+            id,
+            existingTask.title,
+            comment,
+            req.user?.userId || '',
+            existingTask.assignedToId
+          )
+        );
+      }
     }
 
     // Update task
@@ -200,6 +308,9 @@ async function updateTask(req: AuthenticatedRequest, res: NextApiResponse, id: s
         details: `Task "${updatedTask.title}" updated by ${req.user?.email}`,
       },
     });
+
+    // Process all notification tasks in parallel
+    await Promise.all(notificationTasks);
 
     return res.status(200).json(updatedTask);
   } catch (error) {

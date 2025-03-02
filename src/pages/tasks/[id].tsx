@@ -4,7 +4,15 @@ import Layout from '../../components/Layout';
 import TaskDetail from '../../components/TaskDetail';
 import TaskForm from '../../components/TaskForm';
 import withAuth from '../../utils/withAuth';
-import { getTask, deleteTask, getCurrentUser, addComment, deleteComment, updateTask } from '../../utils/api';
+import { 
+  getTask, 
+  deleteTask, 
+  getCurrentUser, 
+  addComment, 
+  deleteComment, 
+  updateTask,
+  expediteTask 
+} from '../../utils/api';
 import { Edit, Trash2, ArrowLeft } from 'lucide-react';
 
 const TaskDetailPage = () => {
@@ -109,6 +117,30 @@ const TaskDetailPage = () => {
     }
   };
 
+  // Handle expediting a task
+  const handleExpediteTask = async (taskId: string, message: string) => {
+    try {
+      await expediteTask(taskId, message);
+      await fetchTask(taskId);
+      // Show success message
+      alert('Task expedite request sent successfully');
+    } catch (err: any) {
+      console.error('Error expediting task:', err);
+      setError(err.message || 'Failed to expedite task');
+    }
+  };
+
+  // Check if user can edit/delete the task
+  const canManageTask = () => {
+    if (!currentUser || !task) return false;
+    
+    return (
+      currentUser.role === 'ADMIN' ||
+      currentUser.role === 'MANAGER' ||
+      currentUser.id === task.createdById
+    );
+  };
+
   if (loading && !task) {
     return (
       <Layout>
@@ -206,6 +238,7 @@ const TaskDetailPage = () => {
               onUpdate={handleUpdateTask}
               onAddComment={handleAddComment}
               onDeleteComment={handleDeleteComment}
+              onExpedite={handleExpediteTask}
               onClose={handleBack}
             />
           )

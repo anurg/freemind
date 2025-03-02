@@ -107,7 +107,6 @@ export function isAuthenticated(): boolean {
 
 // Task API functions
 export async function getTasks(filters: Record<string, any> = {}) {
-  // Convert filters object to query string
   const queryParams = new URLSearchParams();
   Object.entries(filters).forEach(([key, value]) => {
     if (value !== undefined && value !== null && value !== '') {
@@ -123,16 +122,20 @@ export async function getTask(id: string) {
   return apiRequest(`tasks/${id}`);
 }
 
-export async function createTask(taskData: any) {
-  return apiRequest('tasks', 'POST', taskData);
+export async function createTask(data: any) {
+  return apiRequest('tasks', 'POST', data);
 }
 
-export async function updateTask(id: string, taskData: any) {
-  return apiRequest(`tasks/${id}`, 'PUT', taskData);
+export async function updateTask(id: string, data: any) {
+  return apiRequest(`tasks/${id}`, 'PUT', data);
 }
 
 export async function deleteTask(id: string) {
   return apiRequest(`tasks/${id}`, 'DELETE');
+}
+
+export async function expediteTask(id: string, message: string) {
+  return apiRequest(`tasks/expedite/${id}`, 'POST', { message });
 }
 
 // Comment API functions
@@ -192,6 +195,17 @@ export async function markAllNotificationsAsRead() {
 
 export async function deleteNotification(id: string) {
   return apiRequest(`notifications/${id}`, 'DELETE');
+}
+
+export async function createNotification(data: {
+  title: string;
+  message: string;
+  type?: 'INFO' | 'WARNING' | 'ERROR' | 'SUCCESS';
+  userId?: string;
+  taskId?: string;
+  sendToAll?: boolean;
+}) {
+  return apiRequest('notifications', 'POST', data);
 }
 
 // Insights API function

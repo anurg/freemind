@@ -10,7 +10,8 @@ import {
   BarChart2,
   Send,
   Edit,
-  Trash2
+  Trash2,
+  AlertOctagon
 } from 'lucide-react';
 
 type TaskWithRelations = Task & {
@@ -34,6 +35,7 @@ interface TaskDetailProps {
   onUpdate: (taskId: string, data: any) => Promise<void>;
   onAddComment: (taskId: string, content: string) => Promise<void>;
   onDeleteComment: (commentId: string) => Promise<void>;
+  onExpedite?: (taskId: string, message: string) => Promise<void>;
   onClose: () => void;
 }
 
@@ -43,11 +45,14 @@ const TaskDetail: React.FC<TaskDetailProps> = ({
   onUpdate, 
   onAddComment,
   onDeleteComment,
+  onExpedite,
   onClose 
 }) => {
   const [comment, setComment] = useState('');
   const [progress, setProgress] = useState(task.completionPercentage);
   const [isEditing, setIsEditing] = useState(false);
+  const [showExpediteForm, setShowExpediteForm] = useState(false);
+  const [expediteMessage, setExpediteMessage] = useState('');
   const [editData, setEditData] = useState({
     title: task.title,
     description: task.description,
@@ -135,6 +140,24 @@ const TaskDetail: React.FC<TaskDetailProps> = ({
       currentUser.role === 'MANAGER' ||
       comment.user.id === currentUser.id
     );
+  };
+
+  // Check if user can expedite the task
+  const canExpediteTask = () => {
+    return (
+      currentUser.role === 'ADMIN' ||
+      currentUser.role === 'MANAGER'
+    );
+  };
+
+  // Handle expedite submission
+  const handleExpediteSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!expediteMessage.trim() || !onExpedite) return;
+    
+    await onExpedite(task.id, expediteMessage);
+    setExpediteMessage('');
+    setShowExpediteForm(false);
   };
 
   return (
@@ -329,8 +352,55 @@ const TaskDetail: React.FC<TaskDetailProps> = ({
                   Edit Task
                 </button>
               )}
+              
+              {/* Expedite Button - Only for Managers and Admins */}
+              {canExpediteTask() && onExpedite && (
+                <button
+                  onClick={() => setShowExpediteForm(true)}
+                  className="mt-4 flex items-center px-3 py-2 bg-orange-100 text-orange-700 rounded hover:bg-orange-200"
+                >
+                  <AlertOctagon className="h-4 w-4 mr-1" />
+                  Expedite Task
+                </button>
+              )}
             </div>
           </div>
+          
+          {/* Expedite Form */}
+          {showExpediteForm && (
+            <div className="mt-4 bg-orange-50 p-4 rounded-md border border-orange-200">
+              <h4 className="font-medium text-orange-700 flex items-center mb-2">
+                <AlertOctagon className="h-4 w-4 mr-1" />
+                Request Task Expedition
+              </h4>
+              <form onSubmit={handleExpediteSubmit}>
+                <textarea
+                  placeholder="Explain why this task needs to be expedited..."
+                  value={expediteMessage}
+                  onChange={(e) => setExpediteMessage(e.target.value)}
+                  className="w-full p-2 border border-orange-300 rounded focus:ring-orange-500 focus:border-orange-500"
+                  rows={3}
+                  required
+                />
+                <div className="mt-2 flex justify-end space-x-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowExpediteForm(false)}
+                    className="px-3 py-1 bg-gray-100 text-gray-700 rounded hover:bg-gray-200"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={!expediteMessage.trim()}
+                    className="px-3 py-1 bg-orange-600 text-white rounded hover:bg-orange-700 disabled:opacity-50"
+                  >
+                    Send Urgent Request
+                  </button>
+                </div>
+              </form>
+            </div>
+          )}
           
           {/* Progress History */}
           <div className="mt-8">
