@@ -27,7 +27,8 @@ const TasksPage = () => {
   const [pagination, setPagination] = useState({
     total: 0,
     totalPages: 0,
-    currentPage: 1
+    currentPage: 1,
+    limit: 10
   });
 
   // Fetch user on mount
@@ -47,13 +48,22 @@ const TasksPage = () => {
   const fetchTasks = async () => {
     try {
       setLoading(true);
+      console.log('Fetching tasks with filters:', filters);
       const response = await getTasks(filters);
+      console.log('API response:', response);
       setTasks(response.tasks);
-      setPagination({
-        total: response.pagination.total,
-        totalPages: response.pagination.totalPages,
-        currentPage: response.pagination.currentPage
-      });
+      
+      // Ensure pagination values are numbers
+      const paginationData = {
+        total: Number(response.pagination.total),
+        totalPages: Number(response.pagination.totalPages),
+        currentPage: Number(response.pagination.page),
+        limit: Number(response.pagination.limit)
+      };
+      
+      console.log('Pagination data:', paginationData);
+      setPagination(paginationData);
+      
       setLoading(false);
     } catch (err) {
       console.error('Error fetching tasks:', err);
@@ -117,6 +127,9 @@ const TasksPage = () => {
       setTimeout(() => setError(null), 5000); // Clear error after 5 seconds
     }
   };
+
+  // Get the current limit as a number
+  const currentLimit = pagination.limit || Number(filters.limit);
 
   return (
     <Layout>
@@ -275,27 +288,96 @@ const TasksPage = () => {
         <TaskTable tasks={tasks} loading={loading} />
 
         {/* Pagination */}
-        {pagination.totalPages > 1 && (
-          <div className="flex justify-center mt-4">
-            <nav className="inline-flex rounded-md shadow">
-              <button
-                onClick={() => handlePageChange(pagination.currentPage - 1)}
-                disabled={pagination.currentPage === 1}
-                className="px-3 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+        {pagination.totalPages > 0 && (
+          <div className="flex flex-col md:flex-row justify-between items-center mt-4 bg-white p-4 rounded-lg shadow">
+            <div className="mb-4 md:mb-0">
+              <label htmlFor="limitSelector" className="text-sm font-medium text-gray-700 mr-2">
+                Items per page:
+              </label>
+              <select
+                id="limitSelector"
+                className="py-1 px-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                value={filters.limit}
+                onChange={(e) => handleFilterChange('limit', e.target.value)}
               >
-                Previous
-              </button>
-              <span className="px-3 py-2 border-t border-b border-gray-300 bg-white text-sm font-medium text-gray-700">
-                Page {pagination.currentPage} of {pagination.totalPages}
+                <option value="5">5</option>
+                <option value="10">10</option>
+                <option value="50">50</option>
+              </select>
+            </div>
+            
+            <div className="flex items-center">
+              <span className="text-sm text-gray-700 mr-4">
+                {pagination.total > 0 ? (
+                  <>
+                    Showing <span className="font-medium">{((pagination.currentPage - 1) * currentLimit) + 1}</span> to <span className="font-medium">{Math.min(pagination.currentPage * currentLimit, pagination.total)}</span> of <span className="font-medium">{pagination.total}</span> results
+                  </>
+                ) : (
+                  <>No results found</>
+                )}
               </span>
-              <button
-                onClick={() => handlePageChange(pagination.currentPage + 1)}
-                disabled={pagination.currentPage === pagination.totalPages}
-                className="px-3 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                Next
-              </button>
-            </nav>
+              
+              <nav className="inline-flex rounded-md shadow">
+                <button
+                  onClick={() => handlePageChange(1)}
+                  disabled={pagination.currentPage === 1}
+                  className="px-2 py-1 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  First
+                </button>
+                <button
+                  onClick={() => handlePageChange(pagination.currentPage - 1)}
+                  disabled={pagination.currentPage === 1}
+                  className="px-2 py-1 border-t border-b border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Previous
+                </button>
+                
+                {/* Page Numbers */}
+                {Array.from({ length: Math.min(5, pagination.totalPages) }, (_, i) => {
+                  // Calculate which page numbers to show
+                  let pageNum;
+                  if (pagination.totalPages <= 5) {
+                    pageNum = i + 1;
+                  } else if (pagination.currentPage <= 3) {
+                    pageNum = i + 1;
+                  } else if (pagination.currentPage >= pagination.totalPages - 2) {
+                    pageNum = pagination.totalPages - 4 + i;
+                  } else {
+                    pageNum = pagination.currentPage - 2 + i;
+                  }
+                  
+                  return (
+                    <button
+                      key={pageNum}
+                      onClick={() => handlePageChange(pageNum)}
+                      className={`px-3 py-1 border border-gray-300 text-sm font-medium ${
+                        pagination.currentPage === pageNum 
+                          ? 'bg-blue-50 text-blue-600 border-blue-500' 
+                          : 'bg-white text-gray-700 hover:bg-gray-50'
+                      }`}
+                    >
+                      {pageNum}
+                    </button>
+                  );
+                })}
+                
+                <button
+                  onClick={() => handlePageChange(pagination.currentPage + 1)}
+                  disabled={pagination.currentPage === pagination.totalPages}
+                  className="px-2 py-1 border-t border-b border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Next
+                </button>
+                <button
+                  onClick={() => handlePageChange(pagination.totalPages)}
+                  disabled={pagination.currentPage === pagination.totalPages}
+                  className="px-2 py-1 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Last
+                </button>
+              </nav>
+            </div>
           </div>
         )}
       </div>
