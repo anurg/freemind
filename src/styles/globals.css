@@ -19,6 +19,21 @@ body {
   background-color: rgb(var(--background-rgb));
 }
 
+/* Force light mode for the app regardless of system preferences */
+body, 
+.bg-white,
+.text-gray-700,
+.text-gray-800,
+.text-gray-900 {
+  color: #333 !important;
+}
+
+/* Table text colors */
+table tbody td,
+table thead th {
+  color: #333 !important;
+}
+
 /* Custom styles */
 .task-card {
   transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
@@ -50,7 +65,8 @@ input[type="date"],
 input[type="time"],
 input[type="search"],
 select,
-textarea {
+textarea,
+option {
   height: 42px;
   padding: 8px 12px;
   width: 100%;
@@ -59,6 +75,8 @@ textarea {
   border: 1px solid #d1d5db !important;
   box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05) !important;
   transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  color: #333 !important; /* Force dark text color for input fields */
+  background-color: #fff !important; /* Force white background for input fields */
 }
 
 textarea {

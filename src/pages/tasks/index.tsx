@@ -4,7 +4,8 @@ import Layout from '../../components/Layout';
 import TaskTable from '../../components/TaskTable';
 import withAuth from '../../utils/withAuth';
 import { getTasks, getCurrentUser } from '../../utils/api';
-import { PlusCircle, Filter, RefreshCw } from 'lucide-react';
+import { PlusCircle, Filter, RefreshCw, Download, FileText } from 'lucide-react';
+import { exportTasksToCSV, exportTasksToExcel, exportTasksToPDF } from '../../utils/exportUtils';
 
 const TasksPage = () => {
   const router = useRouter();
@@ -12,6 +13,7 @@ const TasksPage = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [user, setUser] = useState<any>(null);
+  const [showExportOptions, setShowExportOptions] = useState(false);
   const [filters, setFilters] = useState({
     status: '',
     category: '',
@@ -89,6 +91,33 @@ const TasksPage = () => {
     fetchTasks();
   };
 
+  // Toggle export options dropdown
+  const toggleExportOptions = () => {
+    setShowExportOptions(!showExportOptions);
+  };
+
+  // Handle exports
+  const handleExportCSV = () => {
+    exportTasksToCSV(tasks);
+    setShowExportOptions(false);
+  };
+
+  const handleExportExcel = () => {
+    exportTasksToExcel(tasks);
+    setShowExportOptions(false);
+  };
+
+  const handleExportPDF = async () => {
+    try {
+      await exportTasksToPDF(tasks, filters);
+      setShowExportOptions(false);
+    } catch (error) {
+      console.error('Error exporting to PDF:', error);
+      setError('Failed to export tasks as PDF. Please try again.');
+      setTimeout(() => setError(null), 5000); // Clear error after 5 seconds
+    }
+  };
+
   return (
     <Layout>
       <div className="space-y-6">
@@ -103,6 +132,46 @@ const TasksPage = () => {
               <RefreshCw className="h-4 w-4 mr-2" />
               Refresh
             </button>
+
+            {/* Export Dropdown */}
+            <div className="relative">
+              <button
+                onClick={toggleExportOptions}
+                className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
+              >
+                <Download className="h-4 w-4 mr-2" />
+                Export
+              </button>
+              
+              {showExportOptions && (
+                <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg z-10 border border-gray-200">
+                  <div className="py-1">
+                    <button
+                      onClick={handleExportCSV}
+                      className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center"
+                    >
+                      <FileText className="h-4 w-4 mr-2" />
+                      Export as CSV
+                    </button>
+                    <button
+                      onClick={handleExportExcel}
+                      className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center"
+                    >
+                      <FileText className="h-4 w-4 mr-2" />
+                      Export as Excel
+                    </button>
+                    <button
+                      onClick={handleExportPDF}
+                      className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center"
+                    >
+                      <FileText className="h-4 w-4 mr-2" />
+                      Export as PDF
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+
             <button
               onClick={handleCreateTask}
               className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700"
@@ -203,107 +272,32 @@ const TasksPage = () => {
         )}
 
         {/* Task Table */}
-        <div className="bg-white shadow rounded-lg overflow-hidden">
-          <TaskTable tasks={tasks} loading={loading} />
-          
-          {/* Pagination */}
-          {!loading && pagination.totalPages > 1 && (
-            <div className="px-4 py-3 flex items-center justify-between border-t border-gray-200 sm:px-6">
-              <div className="flex-1 flex justify-between sm:hidden">
-                <button
-                  onClick={() => handlePageChange(pagination.currentPage - 1)}
-                  disabled={pagination.currentPage === 1}
-                  className="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50"
-                >
-                  Previous
-                </button>
-                <button
-                  onClick={() => handlePageChange(pagination.currentPage + 1)}
-                  disabled={pagination.currentPage === pagination.totalPages}
-                  className="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50"
-                >
-                  Next
-                </button>
-              </div>
-              <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
-                <div>
-                  <p className="text-sm text-gray-700">
-                    Showing <span className="font-medium">{(pagination.currentPage - 1) * filters.limit + 1}</span> to{' '}
-                    <span className="font-medium">
-                      {Math.min(pagination.currentPage * filters.limit, pagination.total)}
-                    </span>{' '}
-                    of <span className="font-medium">{pagination.total}</span> results
-                  </p>
-                </div>
-                <div>
-                  <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
-                    <button
-                      onClick={() => handlePageChange(pagination.currentPage - 1)}
-                      disabled={pagination.currentPage === 1}
-                      className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50"
-                    >
-                      <span className="sr-only">Previous</span>
-                      <svg className="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                        <path fillRule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clipRule="evenodd" />
-                      </svg>
-                    </button>
-                    
-                    {/* Page numbers */}
-                    {Array.from({ length: pagination.totalPages }, (_, i) => i + 1)
-                      .filter(page => 
-                        page === 1 || 
-                        page === pagination.totalPages || 
-                        Math.abs(page - pagination.currentPage) <= 1
-                      )
-                      .map((page, index, array) => {
-                        // Add ellipsis
-                        const showEllipsisBefore = index > 0 && array[index - 1] !== page - 1;
-                        const showEllipsisAfter = index < array.length - 1 && array[index + 1] !== page + 1;
-                        
-                        return (
-                          <React.Fragment key={page}>
-                            {showEllipsisBefore && (
-                              <span className="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-700">
-                                ...
-                              </span>
-                            )}
-                            
-                            <button
-                              onClick={() => handlePageChange(page)}
-                              className={`relative inline-flex items-center px-4 py-2 border ${
-                                pagination.currentPage === page
-                                  ? 'z-10 bg-blue-50 border-blue-500 text-blue-600'
-                                  : 'bg-white border-gray-300 text-gray-500 hover:bg-gray-50'
-                              } text-sm font-medium`}
-                            >
-                              {page}
-                            </button>
-                            
-                            {showEllipsisAfter && (
-                              <span className="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-700">
-                                ...
-                              </span>
-                            )}
-                          </React.Fragment>
-                        );
-                      })}
-                    
-                    <button
-                      onClick={() => handlePageChange(pagination.currentPage + 1)}
-                      disabled={pagination.currentPage === pagination.totalPages}
-                      className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50"
-                    >
-                      <span className="sr-only">Next</span>
-                      <svg className="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                        <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
-                      </svg>
-                    </button>
-                  </nav>
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
+        <TaskTable tasks={tasks} loading={loading} />
+
+        {/* Pagination */}
+        {pagination.totalPages > 1 && (
+          <div className="flex justify-center mt-4">
+            <nav className="inline-flex rounded-md shadow">
+              <button
+                onClick={() => handlePageChange(pagination.currentPage - 1)}
+                disabled={pagination.currentPage === 1}
+                className="px-3 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Previous
+              </button>
+              <span className="px-3 py-2 border-t border-b border-gray-300 bg-white text-sm font-medium text-gray-700">
+                Page {pagination.currentPage} of {pagination.totalPages}
+              </span>
+              <button
+                onClick={() => handlePageChange(pagination.currentPage + 1)}
+                disabled={pagination.currentPage === pagination.totalPages}
+                className="px-3 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Next
+              </button>
+            </nav>
+          </div>
+        )}
       </div>
     </Layout>
   );

@@ -1,37 +1,87 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
-import { ChevronDown, ChevronUp, Filter, Search } from 'lucide-react';
+import { ChevronUp, ChevronDown, Search, X } from 'lucide-react';
 
 interface Task {
   id: string;
   title: string;
+  description?: string;
+  status: string;
   category: string;
-  status: 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'DELAYED';
+  priority: string;
   completionPercentage: number;
-  dueDate: string | null;
-  assignedTo: {
+  dueDate?: string;
+  assignedTo?: {
+    id: string;
     username: string;
-  } | null;
+  };
+  createdBy?: {
+    id: string;
+    username: string;
+  };
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 interface TaskTableProps {
   tasks: Task[];
-  loading?: boolean;
+  loading: boolean;
 }
 
-const TaskTable: React.FC<TaskTableProps> = ({ tasks = [], loading = false }) => {
+const TaskTable: React.FC<TaskTableProps> = ({ tasks, loading }) => {
   const router = useRouter();
-  const [searchTerm, setSearchTerm] = useState('');
-  const [sortField, setSortField] = useState<keyof Task>('dueDate');
-  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
-  const [statusFilter, setStatusFilter] = useState<string>('');
-  const [categoryFilter, setCategoryFilter] = useState<string>('');
+  const [sortField, setSortField] = useState<string>('updatedAt');
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
+  const [searchTerm, setSearchTerm] = useState<string>('');
+  const [filteredTasks, setFilteredTasks] = useState<Task[]>([]);
 
-  // Get unique categories for filtering
-  const categories = Array.from(new Set(tasks.map(task => task.category)));
+  // Update filtered tasks when tasks, search term, or sorting changes
+  useEffect(() => {
+    let filtered = [...tasks];
+    
+    // Apply search filter
+    if (searchTerm) {
+      filtered = filtered.filter(task => {
+        const matchesSearch = task.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          (task.assignedTo?.username.toLowerCase().includes(searchTerm.toLowerCase()) || false);
+        return matchesSearch;
+      });
+    }
+    
+    // Apply sorting
+    filtered.sort((a, b) => {
+      let aValue: any = a[sortField as keyof Task];
+      let bValue: any = b[sortField as keyof Task];
+      
+      // Handle nested properties
+      if (sortField === 'assignedTo') {
+        aValue = a.assignedTo?.username || '';
+        bValue = b.assignedTo?.username || '';
+      }
+      
+      // Handle date comparison
+      if (sortField === 'dueDate' || sortField === 'createdAt' || sortField === 'updatedAt') {
+        aValue = aValue ? new Date(aValue).getTime() : 0;
+        bValue = bValue ? new Date(bValue).getTime() : 0;
+      }
+      
+      // Handle string comparison
+      if (typeof aValue === 'string' && typeof bValue === 'string') {
+        return sortDirection === 'asc' 
+          ? aValue.localeCompare(bValue)
+          : bValue.localeCompare(aValue);
+      }
+      
+      // Handle number comparison
+      return sortDirection === 'asc' ? aValue - bValue : bValue - aValue;
+    });
+    
+    setFilteredTasks(filtered);
+  }, [tasks, searchTerm, sortField, sortDirection]);
 
-  const handleSort = (field: keyof Task) => {
-    if (sortField === field) {
+  // Handle sort change
+  const handleSort = (field: string) => {
+    if (field === sortField) {
       setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
     } else {
       setSortField(field);
@@ -39,46 +89,18 @@ const TaskTable: React.FC<TaskTableProps> = ({ tasks = [], loading = false }) =>
     }
   };
 
-  const filteredTasks = tasks.filter(task => {
-    // Apply search term filter
-    const matchesSearch = task.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         (task.assignedTo?.username.toLowerCase().includes(searchTerm.toLowerCase()) || false);
+  // Handle view task
+  const handleViewTask = (taskId: string) => {
+    router.push(`/tasks/${taskId}`);
+  };
 
-    // Apply status filter
-    const matchesStatus = statusFilter === '' || task.status === statusFilter;
-
-    // Apply category filter
-    const matchesCategory = categoryFilter === '' || task.category === categoryFilter;
-
-    return matchesSearch && matchesStatus && matchesCategory;
-  });
-
-  // Apply sorting
-  const sortedTasks = [...filteredTasks].sort((a, b) => {
-    if (sortField === 'dueDate') {
-      // Handle null dates
-      if (!a.dueDate && !b.dueDate) return 0;
-      if (!a.dueDate) return sortDirection === 'asc' ? 1 : -1;
-      if (!b.dueDate) return sortDirection === 'asc' ? -1 : 1;
-
-      // Compare dates
-      return sortDirection === 'asc' 
-        ? new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime()
-        : new Date(b.dueDate).getTime() - new Date(a.dueDate).getTime();
-    }
-
-    // For other fields
-    if (a[sortField] < b[sortField]) return sortDirection === 'asc' ? -1 : 1;
-    if (a[sortField] > b[sortField]) return sortDirection === 'asc' ? 1 : -1;
-    return 0;
-  });
-
+  // Get status color
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'PENDING':
-        return 'bg-gray-100 text-gray-800';
-      case 'IN_PROGRESS':
         return 'bg-yellow-100 text-yellow-800';
+      case 'IN_PROGRESS':
+        return 'bg-blue-100 text-blue-800';
       case 'COMPLETED':
         return 'bg-green-100 text-green-800';
       case 'DELAYED':
@@ -88,71 +110,40 @@ const TaskTable: React.FC<TaskTableProps> = ({ tasks = [], loading = false }) =>
     }
   };
 
-  const handleViewTask = (taskId: string) => {
-    router.push(`/tasks/${taskId}`);
-  };
+  // Get sorted tasks
+  const sortedTasks = filteredTasks;
 
   return (
-    <div className="bg-white shadow rounded-lg p-4">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-4 gap-4">
-        <h2 className="text-lg font-semibold">Tasks</h2>
-
-        <div className="flex flex-col md:flex-row gap-2 w-full md:w-auto">
-          {/* Search */}
-          <div className="relative">
-            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <Search className="h-4 w-4 text-gray-400" />
-            </div>
-            <input
-              type="text"
-              placeholder="Search tasks..."
-              className="pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 w-full"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
+    <div className="bg-white shadow rounded-lg overflow-hidden">
+      {/* Search Bar */}
+      <div className="p-4 border-b border-gray-200">
+        <div className="relative">
+          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+            <Search className="h-5 w-5 text-gray-400" />
           </div>
-
-          {/* Status Filter */}
-          <div className="relative">
-            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <Filter className="h-4 w-4 text-gray-400" />
+          <input
+            type="text"
+            className="pl-10 pr-10 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 w-full"
+            placeholder="Search tasks by title or assignee..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
+          {searchTerm && (
+            <div className="absolute inset-y-0 right-0 pr-3 flex items-center">
+              <button 
+                onClick={() => setSearchTerm('')}
+                className="text-gray-400 hover:text-gray-500"
+              >
+                <X className="h-5 w-5" />
+              </button>
             </div>
-            <select
-              className="pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 appearance-none w-full"
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-            >
-              <option value="">All Statuses</option>
-              <option value="PENDING">Pending</option>
-              <option value="IN_PROGRESS">In Progress</option>
-              <option value="COMPLETED">Completed</option>
-              <option value="DELAYED">Delayed</option>
-            </select>
-          </div>
-
-          {/* Category Filter */}
-          <div className="relative">
-            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <Filter className="h-4 w-4 text-gray-400" />
-            </div>
-            <select
-              className="pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 appearance-none w-full"
-              value={categoryFilter}
-              onChange={(e) => setCategoryFilter(e.target.value)}
-            >
-              <option value="">All Categories</option>
-              {categories.map((category) => (
-                <option key={category} value={category}>
-                  {category}
-                </option>
-              ))}
-            </select>
-          </div>
+          )}
         </div>
       </div>
 
+      {/* Task Table */}
       {loading ? (
-        <div className="flex justify-center py-8">
+        <div className="flex justify-center items-center p-8">
           <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
         </div>
       ) : (
