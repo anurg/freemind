@@ -49,52 +49,52 @@ async function handler(req: AuthenticatedRequest, res: NextApiResponse) {
       data: {
         content: `⚠️ URGENT: ${message}`,
         taskId: id,
-        userId: req.user.userId,
+        userId: req.user.id,
       },
     });
 
-    // Create an audit log entry
+    // Log the expedite request
     await prisma.auditLog.create({
       data: {
         action: 'EXPEDITE',
         entity: 'TASK',
         entityId: id,
-        userId: req.user.userId,
+        userId: req.user.id,
         taskId: id,
-        details: `Task "${task.title}" expedite requested by ${req.user.email}: "${message}"`,
+        details: `Task "${task.title}" expedite requested by ${req.user.email} with message: ${message}`,
       },
     });
 
-    // Send notifications
-    const notificationPromises = [];
+    // Create notification for task owner
+    await prisma.notification.create({
+      data: {
+        title: 'Task Expedite Request',
+        message: `Your task "${task.title}" has been flagged for expedited handling with message: ${message}`,
+        type: 'WARNING',
+        userId: req.user.id,
+        taskId: id,
+      },
+    });
 
-    // Notify the assignee if there is one
-    if (task.assignedToId) {
-      notificationPromises.push(
-        createTaskExpediteNotification(
-          id,
-          task.title,
-          message,
-          req.user.userId,
-          task.assignedToId
-        )
+    // Send notification to the task creator
+    await createTaskExpediteNotification(
+      id,
+      task.title,
+      message,
+      req.user.id,
+      task.createdById
+    );
+
+    // Send notification to the assignee if different from creator
+    if (task.createdById !== req.user.id && task.createdById !== task.assignedToId) {
+      await createTaskExpediteNotification(
+        id,
+        task.title,
+        message,
+        req.user.id,
+        task.assignedToId || ''
       );
     }
-
-    // Notify the creator if they're not the one expediting and not the assignee
-    if (task.createdById !== req.user.userId && task.createdById !== task.assignedToId) {
-      notificationPromises.push(
-        createTaskExpediteNotification(
-          id,
-          task.title,
-          message,
-          req.user.userId,
-          task.createdById
-        )
-      );
-    }
-
-    await Promise.all(notificationPromises);
 
     return res.status(200).json({ 
       message: 'Task expedite request sent successfully',

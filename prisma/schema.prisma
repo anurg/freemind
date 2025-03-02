@@ -24,6 +24,7 @@ model User {
   comments      Comment[]
   auditLogs     AuditLog[]
   notifications Notification[]
+  preferences   UserPreferences?
 }
 
 model Task {
@@ -94,6 +95,35 @@ model Notification {
   updatedAt DateTime     @updatedAt
 }
 
+model UserPreferences {
+  id                String   @id @default(uuid())
+  userId            String   @unique
+  user              User     @relation(fields: [userId], references: [id])
+  darkMode          Boolean  @default(false)
+  emailNotifications Boolean  @default(true)
+  taskAssignmentNotify Boolean @default(true)
+  taskDeadlineNotify  Boolean @default(true)
+  taskCompletionNotify Boolean @default(true)
+  digestFrequency    DigestFrequency @default(IMMEDIATE)
+  defaultDashboardView String? 
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+}
+
+model SystemSettings {
+  id                String   @id @default(uuid())
+  smtpHost          String?
+  smtpPort          Int?
+  smtpUser          String?
+  smtpPassword      String?
+  smtpSecure        Boolean  @default(true)
+  organizationName  String?
+  defaultCategories String[]
+  auditLogRetention Int      @default(90) // Days to retain audit logs
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+}
+
 enum Role {
   ADMIN
   MANAGER
@@ -112,4 +142,10 @@ enum NotificationType {
   WARNING
   ERROR
   SUCCESS
+}
+
+enum DigestFrequency {
+  IMMEDIATE
+  DAILY
+  WEEKLY
 }

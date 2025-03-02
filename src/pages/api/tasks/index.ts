@@ -49,8 +49,8 @@ async function getTasks(req: AuthenticatedRequest, res: NextApiResponse) {
     // For regular users, only show tasks they created or are assigned to
     if (req.user?.role !== 'ADMIN' && req.user?.role !== 'MANAGER') {
       where.OR = [
-        { createdById: req.user?.userId },
-        { assignedToId: req.user?.userId }
+        { createdById: req.user?.id },
+        { assignedToId: req.user?.id }
       ];
     } 
     // For managers or if createdById is specified
@@ -151,7 +151,7 @@ async function createTask(req: AuthenticatedRequest, res: NextApiResponse) {
     }
 
     // Ensure we have a valid user ID
-    if (!req.user?.userId) {
+    if (!req.user?.id) {
       return res.status(401).json({ message: 'User ID not found in token' });
     }
 
@@ -166,7 +166,7 @@ async function createTask(req: AuthenticatedRequest, res: NextApiResponse) {
         dueDate: dueDate ? new Date(dueDate) : null,
         // Only include assignedToId if it's a non-empty string
         ...(assignedToId ? { assignedToId } : {}),
-        createdById: req.user.userId,
+        createdById: req.user.id,
       },
       include: {
         assignedTo: {
@@ -204,19 +204,19 @@ async function createTask(req: AuthenticatedRequest, res: NextApiResponse) {
         action: 'CREATE',
         entity: 'TASK',
         entityId: newTask.id,
-        userId: req.user.userId,
+        userId: req.user.id,
         taskId: newTask.id,
         details: `Task "${newTask.title}" created by ${req.user.email}`,
       },
     });
 
     // Send notification to assigned user if task is assigned
-    if (assignedToId && assignedToId !== req.user.userId) {
+    if (assignedToId && assignedToId !== req.user.id) {
       await createTaskAssignmentNotification(
         newTask.id,
         title,
         assignedToId,
-        req.user.userId
+        req.user.id
       );
     }
 

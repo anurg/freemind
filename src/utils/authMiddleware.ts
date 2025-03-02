@@ -5,11 +5,7 @@ import { PrismaClient } from '@prisma/client';
 const prisma = new PrismaClient();
 
 export interface AuthenticatedRequest extends NextApiRequest {
-  user?: {
-    userId: string;
-    email: string;
-    role: string;
-  };
+  user?: any;
 }
 
 type Handler = (req: AuthenticatedRequest, res: NextApiResponse) => Promise<void | NextApiResponse>;
@@ -32,15 +28,18 @@ export function withAuth(handler: Handler, requiredRoles: string[] = []) {
       const decoded = jwt.verify(
         token, 
         process.env.JWT_SECRET || 'your-super-secret-jwt-key-for-freemind-app'
-      ) as {
-        userId: string;
-        email: string;
-        role: string;
-      };
+      ) as any;
+
+      console.log('Decoded token:', decoded);
 
       // Check if user exists and is active
+      const userId = decoded.id || decoded.userId;
+      if (!userId) {
+        return res.status(401).json({ message: 'Unauthorized: Invalid token structure' });
+      }
+
       const user = await prisma.user.findUnique({
-        where: { id: decoded.userId },
+        where: { id: userId },
       });
 
       if (!user || !user.isActive) {
@@ -48,12 +47,17 @@ export function withAuth(handler: Handler, requiredRoles: string[] = []) {
       }
 
       // Check if user has required role
-      if (requiredRoles.length > 0 && !requiredRoles.includes(decoded.role)) {
+      const userRole = decoded.role;
+      if (requiredRoles.length > 0 && !requiredRoles.includes(userRole)) {
         return res.status(403).json({ message: 'Forbidden: Insufficient permissions' });
       }
 
       // Add user data to request
-      req.user = decoded;
+      req.user = {
+        id: userId,
+        email: user.email,
+        role: user.role
+      };
 
       // Call the original handler
       return handler(req, res);
@@ -69,3 +73,6 @@ export function withAuth(handler: Handler, requiredRoles: string[] = []) {
     }
   };
 }
+
+// Export the authMiddleware function for backward compatibility
+export const authMiddleware = (handler: Handler) => withAuth(handler, []);

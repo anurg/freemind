@@ -47,6 +47,16 @@ const Dashboard = () => {
   const fetchDashboardData = async () => {
     try {
       setLoading(true);
+      setError(null);
+      
+      // Get the token from localStorage
+      const token = localStorage.getItem('token');
+      if (!token) {
+        console.error('No token found');
+        setError('Authentication error. Please log in again.');
+        setLoading(false);
+        return;
+      }
       
       // Fetch recent tasks
       const tasksResponse = await getTasks({ 
@@ -54,10 +64,13 @@ const Dashboard = () => {
         sortBy: 'updatedAt', 
         sortOrder: 'desc' 
       });
+      
+      console.log('Tasks loaded:', tasksResponse.tasks);
       setTasks(tasksResponse.tasks);
       
       // Calculate task statistics
       const allTasksResponse = await getTasks({ limit: 1000 });
+      console.log('All tasks loaded for stats:', allTasksResponse.tasks.length);
       calculateTaskStats(allTasksResponse.tasks);
       
       // Fetch insights if user is admin or manager
@@ -74,7 +87,7 @@ const Dashboard = () => {
       setLoading(false);
     } catch (err) {
       console.error('Error fetching dashboard data:', err);
-      setError('Failed to load dashboard data');
+      setError('Failed to load dashboard data. Please try refreshing the page.');
       setLoading(false);
     }
   };

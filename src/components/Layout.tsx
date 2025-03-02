@@ -11,7 +11,8 @@ import {
   Users, 
   BarChart2, 
   Settings,
-  List
+  List,
+  Server
 } from 'lucide-react';
 import { logout, getCurrentUser, getNotifications } from '../utils/api';
 import Notifications from './Notifications';
@@ -74,7 +75,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
 
   // Navigation items based on user role
   const getNavItems = () => {
-    const items = [
+    const baseNavItems = [
       { 
         path: '/dashboard', 
         label: 'Dashboard', 
@@ -85,7 +86,22 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
         label: 'Tasks', 
         icon: <List className="h-5 w-5" /> 
       },
+      { 
+        path: '/settings', 
+        label: 'Settings', 
+        icon: <Settings className="h-5 w-5" /> 
+      }
     ];
+
+    const adminNavItems = [
+      { 
+        path: '/users', 
+        label: 'Users', 
+        icon: <Users className="h-5 w-5" /> 
+      }
+    ];
+
+    const items = [...baseNavItems];
 
     // Add admin/manager only items
     if (user && (user.role === 'ADMIN' || user.role === 'MANAGER')) {
@@ -100,18 +116,8 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
 
     // Add admin only items
     if (user && user.role === 'ADMIN') {
-      items.push(
-        { 
-          path: '/users', 
-          label: 'Users', 
-          icon: <Users className="h-5 w-5" /> 
-        },
-        { 
-          path: '/settings', 
-          label: 'Settings', 
-          icon: <Settings className="h-5 w-5" /> 
-        }
-      );
+      items.push(...adminNavItems);
+      // Admin settings are now integrated into the main settings page
     }
 
     return items;

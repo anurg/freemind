@@ -78,7 +78,7 @@ async function getTask(req: AuthenticatedRequest, res: NextApiResponse, id: stri
 
     // Check if user has access to this task
     if (req.user?.role !== 'ADMIN' && req.user?.role !== 'MANAGER') {
-      if (task.createdById !== req.user?.userId && task.assignedToId !== req.user?.userId) {
+      if (task.createdById !== req.user?.id && task.assignedToId !== req.user?.id) {
         return res.status(403).json({ message: 'Forbidden: You do not have access to this task' });
       }
     }
@@ -110,7 +110,7 @@ async function updateTask(req: AuthenticatedRequest, res: NextApiResponse, id: s
 
     // Check if user has access to update this task
     if (req.user?.role !== 'ADMIN' && req.user?.role !== 'MANAGER') {
-      if (existingTask.createdById !== req.user?.userId && existingTask.assignedToId !== req.user?.userId) {
+      if (existingTask.createdById !== req.user?.id && existingTask.assignedToId !== req.user?.id) {
         return res.status(403).json({ message: 'Forbidden: You do not have permission to update this task' });
       }
     }
@@ -146,7 +146,7 @@ async function updateTask(req: AuthenticatedRequest, res: NextApiResponse, id: s
           id,
           existingTask.title,
           assignedToId,
-          req.user?.userId || ''
+          req.user?.id || ''
         )
       );
     }
@@ -154,27 +154,27 @@ async function updateTask(req: AuthenticatedRequest, res: NextApiResponse, id: s
     // Handle status change notification
     if (status && status !== existingTask.status) {
       // Notify task creator if they're not the one updating the status
-      if (existingTask.createdById !== req.user?.userId) {
+      if (existingTask.createdById !== req.user?.id) {
         notificationTasks.push(
           createTaskStatusChangeNotification(
             id,
             existingTask.title,
             status,
             existingTask.createdById,
-            req.user?.userId || ''
+            req.user?.id || ''
           )
         );
       }
 
       // Notify assignee if they're not the one updating the status
-      if (existingTask.assignedToId && existingTask.assignedToId !== req.user?.userId) {
+      if (existingTask.assignedToId && existingTask.assignedToId !== req.user?.id) {
         notificationTasks.push(
           createTaskStatusChangeNotification(
             id,
             existingTask.title,
             status,
             existingTask.assignedToId,
-            req.user?.userId || ''
+            req.user?.id || ''
           )
         );
       }
@@ -209,28 +209,28 @@ async function updateTask(req: AuthenticatedRequest, res: NextApiResponse, id: s
         }
 
         // Notify task creator if they're not the one updating the progress
-        if (existingTask.createdById !== req.user?.userId) {
+        if (existingTask.createdById !== req.user?.id) {
           notificationTasks.push(
             createProgressUpdateNotification(
               id,
               existingTask.title,
               existingTask.completionPercentage,
               completionPercentage,
-              req.user?.userId || '',
+              req.user?.id || '',
               existingTask.createdById
             )
           );
         }
 
         // Notify assignee if they're not the one updating the progress
-        if (existingTask.assignedToId && existingTask.assignedToId !== req.user?.userId) {
+        if (existingTask.assignedToId && existingTask.assignedToId !== req.user?.id) {
           notificationTasks.push(
             createProgressUpdateNotification(
               id,
               existingTask.title,
               existingTask.completionPercentage,
               completionPercentage,
-              req.user?.userId || '',
+              req.user?.id || '',
               existingTask.assignedToId
             )
           );
@@ -244,31 +244,31 @@ async function updateTask(req: AuthenticatedRequest, res: NextApiResponse, id: s
         data: {
           content: comment,
           taskId: id,
-          userId: req.user?.userId || '',
+          userId: req.user?.id || '',
         },
       });
 
       // Notify task creator if they're not the one commenting
-      if (existingTask.createdById !== req.user?.userId) {
+      if (existingTask.createdById !== req.user?.id) {
         notificationTasks.push(
           createCommentNotification(
             id,
             existingTask.title,
             comment,
-            req.user?.userId || '',
+            req.user?.id || '',
             existingTask.createdById
           )
         );
       }
 
       // Notify assignee if they're not the one commenting
-      if (existingTask.assignedToId && existingTask.assignedToId !== req.user?.userId) {
+      if (existingTask.assignedToId && existingTask.assignedToId !== req.user?.id) {
         notificationTasks.push(
           createCommentNotification(
             id,
             existingTask.title,
             comment,
-            req.user?.userId || '',
+            req.user?.id || '',
             existingTask.assignedToId
           )
         );
@@ -303,7 +303,7 @@ async function updateTask(req: AuthenticatedRequest, res: NextApiResponse, id: s
         action: 'UPDATE',
         entity: 'TASK',
         entityId: id,
-        userId: req.user?.userId || '',
+        userId: req.user?.id || '',
         taskId: id,
         details: `Task "${updatedTask.title}" updated by ${req.user?.email}`,
       },
@@ -334,7 +334,7 @@ async function deleteTask(req: AuthenticatedRequest, res: NextApiResponse, id: s
     }
 
     // Only admins, managers, or the task creator can delete tasks
-    if (req.user?.role !== 'ADMIN' && req.user?.role !== 'MANAGER' && existingTask.createdById !== req.user?.userId) {
+    if (req.user?.role !== 'ADMIN' && req.user?.role !== 'MANAGER' && existingTask.createdById !== req.user?.id) {
       return res.status(403).json({ message: 'Forbidden: You do not have permission to delete this task' });
     }
 
@@ -362,7 +362,7 @@ async function deleteTask(req: AuthenticatedRequest, res: NextApiResponse, id: s
         action: 'DELETE',
         entity: 'TASK',
         entityId: id,
-        userId: req.user?.userId || '',
+        userId: req.user?.id || '',
         details: `Task "${existingTask.title}" deleted by ${req.user?.email}`,
       },
     });
