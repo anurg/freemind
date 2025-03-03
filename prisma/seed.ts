@@ -49,12 +49,45 @@ async function main() {
 
   console.log('Created regular user:', user.username);
 
+  // Create default system settings with categories
+  const systemSettings = await prisma.systemSettings.upsert({
+    where: { id: 'default' },
+    update: {},
+    create: {
+      id: 'default',
+      organizationName: 'FreeMind',
+      defaultCategories: ['DEVELOPMENT', 'DESIGN', 'MARKETING', 'OPERATIONS', 'FINANCE']
+    }
+  });
+
+  console.log('Created system settings');
+
+  // Create categories
+  const developmentCategory = await prisma.category.upsert({
+    where: { name: 'DEVELOPMENT' },
+    update: {},
+    create: {
+      name: 'DEVELOPMENT',
+      description: 'Development related tasks'
+    }
+  });
+
+  const designCategory = await prisma.category.upsert({
+    where: { name: 'DESIGN' },
+    update: {},
+    create: {
+      name: 'DESIGN',
+      description: 'Design related tasks'
+    }
+  });
+
+  console.log('Created categories');
+
   // Create sample tasks
   const task1 = await prisma.task.create({
     data: {
       title: 'Implement User Authentication',
       description: 'Set up JWT authentication for the application',
-      category: 'DEVELOPMENT',
       status: TaskStatus.COMPLETED,
       completionPercentage: 100,
       dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days from now
@@ -63,6 +96,9 @@ async function main() {
       },
       createdBy: {
         connect: { id: admin.id }
+      },
+      category_rel: {
+        connect: { id: developmentCategory.id }
       }
     }
   });
@@ -73,7 +109,6 @@ async function main() {
     data: {
       title: 'Design Dashboard UI',
       description: 'Create wireframes and mockups for the dashboard',
-      category: 'DESIGN',
       status: TaskStatus.IN_PROGRESS,
       completionPercentage: 60,
       dueDate: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000), // 3 days from now
@@ -82,6 +117,9 @@ async function main() {
       },
       createdBy: {
         connect: { id: admin.id }
+      },
+      category_rel: {
+        connect: { id: designCategory.id }
       }
     }
   });
@@ -92,7 +130,6 @@ async function main() {
     data: {
       title: 'Implement Task Management API',
       description: 'Create REST API endpoints for task CRUD operations',
-      category: 'DEVELOPMENT',
       status: TaskStatus.PENDING,
       completionPercentage: 0,
       dueDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000), // 14 days from now
@@ -100,7 +137,10 @@ async function main() {
         connect: { id: user.id }
       },
       createdBy: {
-        connect: { id: manager.id }
+        connect: { id: admin.id }
+      },
+      category_rel: {
+        connect: { id: developmentCategory.id }
       }
     }
   });
